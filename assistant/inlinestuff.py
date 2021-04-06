@@ -5,25 +5,95 @@
 # PLease read the GNU Affero General Public License in
 # <https://www.github.com/TeamUltroid/Ultroid/blob/main/LICENSE/>.
 
-import random
-import re
+from random import randrange
+from re import compile as re_compile
+from re import findall
 from urllib.request import urlopen
 
-import play_scraper
 import requests
 from bs4 import BeautifulSoup
-from pyUltroid.functions.parser import GoogleSearch, YahooSearch
+from orangefoxapi import OrangeFoxAPI
+from play_scraper import search
 from rextester_py import rexec_aio
 from rextester_py.rextester_aio import UnknownLanguage
+from search_engine_parser import GoogleSearch, YahooSearch
 from telethon import Button
 from telethon.tl.types import InputWebDocument as wb
 
 from . import *
+from . import humanbytes as hb
 
+ofox = "https://telegra.ph/file/231f0049fcd722824f13b.jpg"
 gugirl = "https://telegra.ph/file/0df54ae4541abca96aa11.jpg"
 yeah = "https://telegra.ph/file/e3c67885e16a194937516.jpg"
 ps = "https://telegra.ph/file/de0b8d9c858c62fae3b6e.jpg"
 ultpic = "https://telegra.ph/file/4136aa1650bc9d4109cc5.jpg"
+rex_langs = """ada, bash, brainfuck, c (clang), c, c (vc),
+c#, c++ (clang), c++, c++ (vc++), d, elixir,
+erlang, f#, fortran, go, haskell, java, js,
+kotlin, lisp, lua, mysql, nasm, node,
+objective-c, ocaml, octave, oracle, pascal,
+perl, php, postgresql, prolog, python,
+python3, r, ruby, scala, scheme, sql server,
+swift, tcl, vb.net"""
+
+ofox_api = OrangeFoxAPI()
+
+
+@in_pattern("ofox")
+@in_owner
+async def _(e):
+    try:
+        match = e.text.split(" ", maxsplit=1)[1]
+    except IndexError:
+        kkkk = e.builder.article(
+            title="Enter Device Codename",
+            thumb=wb(ofox, 0, "image/jpeg", []),
+            text="**OFᴏx🦊Rᴇᴄᴏᴠᴇʀʏ**\n\nYou didn't search anything",
+            buttons=Button.switch_inline("Sᴇᴀʀᴄʜ Aɢᴀɪɴ", query="ofox ", same_peer=True),
+        )
+        await e.answer([kkkk])
+    a = ofox_api.releases(codename=match)
+    c = ofox_api.devices(codename=match)
+    if len(a.data) > 0:
+        fox = []
+        for b in a.data:
+            ver = b.version
+            release = b.type
+            size = hb(b.size)
+            for z in c.data:
+                fullname = z.full_name
+                code = z.codename
+                link = f"https://orangefox.download/device/{code}"
+                text = f"**••OʀᴀɴɢᴇFᴏx Rᴇᴄᴏᴠᴇʀʏ Fᴏʀ•[•]({ofox})** {fullname}\n"
+                text += f"**••Cᴏᴅᴇɴᴀᴍᴇ••** {code}\n"
+                text += f"**••Bᴜɪʟᴅ Tʏᴘᴇ••** {release}\n"
+                text += f"**••Vᴇʀsɪᴏɴ••** {ver}\n"
+                text += f"**••Sɪᴢᴇ••** {size}\n"
+                fox.append(
+                    await e.builder.article(
+                        title=f"{fullname}",
+                        description=f"{ver}\n{release}",
+                        text=text,
+                        thumb=wb(ofox, 0, "image/jpeg", []),
+                        link_preview=True,
+                        buttons=[
+                            Button.url("Dᴏᴡɴʟᴏᴀᴅ", url=f"{link}"),
+                            Button.switch_inline(
+                                "Sᴇᴀʀᴄʜ Aɢᴀɪɴ", query="ofox ", same_peer=True
+                            ),
+                        ],
+                    )
+                )
+        await e.answer(fox)
+    else:
+        sed = e.builder.article(
+            title="Not Found",
+            description="Wrong Codename",
+            text="OʀᴀɴɢFᴏx Rᴇᴄᴏᴠᴇʀʏ Fᴏʀ Yᴏᴜʀ Pʜᴏɴᴇ Is Eɪᴛʜᴇʀ Nᴏᴛ Oғғɪᴄɪᴀʟʟʏ Bᴜɪʟᴛ Oʀ Yᴏᴜ Hᴀᴠᴇ Eɴᴛᴇʀᴇᴅ Wʀᴏɴɢ Cᴏᴅᴇɴᴀᴍᴇ",
+            buttons=Button.switch_inline("Sᴇᴀʀᴄʜ Aɢᴀɪɴ", query="ofox ", same_peer=True),
+        )
+        await e.answer([sed])
 
 
 @in_pattern("fl2lnk ?(.*)")
@@ -60,7 +130,7 @@ async def _(e):
 
 
 @callback(
-    re.compile(
+    re_compile(
         "fl(.*)",
     ),
 )
@@ -88,7 +158,7 @@ async def repo(e):
                 [Button.url("Repo", url="https://github.com/TeamUltroid/Ultroid")],
                 [Button.url("Support", url="t.me/UltroidSupport")],
             ],
-        )
+        ),
     ]
     await e.answer(res)
 
@@ -107,7 +177,7 @@ async def gsearch(q_event):
         )
         await q_event.answer([kkkk])
     searcher = []
-    page = re.findall(r"page=\d+", match)
+    page = findall(r"page=\d+", match)
     cache = False
     try:
         page = page[0]
@@ -136,14 +206,18 @@ async def gsearch(q_event):
                         [Button.url("Lɪɴᴋ", url=f"{link}")],
                         [
                             Button.switch_inline(
-                                "Sᴇᴀʀᴄʜ Aɢᴀɪɴ", query="go ", same_peer=True
+                                "Sᴇᴀʀᴄʜ Aɢᴀɪɴ",
+                                query="go ",
+                                same_peer=True,
                             ),
                             Button.switch_inline(
-                                "Sʜᴀʀᴇ", query=f"go {match}", same_peer=False
+                                "Sʜᴀʀᴇ",
+                                query=f"go {match}",
+                                same_peer=False,
                             ),
                         ],
                     ],
-                )
+                ),
             )
         except IndexError:
             break
@@ -158,10 +232,14 @@ async def rextester(event):
         omk = event.text.split(" ", maxsplit=1)[1]
         if omk is not None:
             if "|" in omk:
-                lang, code = omk.split("|")
+                lang, codee = omk.split("|")
             else:
-                lang = "python 3"
-                code = omk
+                lang = "python3"
+                codee = omk
+            if lang == "php":
+                code = f"<?php {codee} ?>"
+            else:
+                code = codee
             output = await rexec_aio(lang, code)
             stats = output.stats
             if output.errors is not None:
@@ -183,7 +261,7 @@ async def rextester(event):
         resultm = builder.article(
             title="Error",  # By @ProgrammingError
             description="Invalid language choosen",
-            text="The list of valid languages are\n\nc#, vb.net, f#, java, python, c (gcc), \nc++ (gcc), php, pascal, objective-c, haskell, \nruby, perl, lua, nasm, sql server, javascript, lisp, prolog, go, scala, \nscheme, node.js, python 3, octave, c (clang), \nc++ (clang), c++ (vc++), c (vc), d, r, tcl, mysql, postgresql, oracle, swift, \nbash, ada, erlang, elixir, ocaml, \nkotlin, brainfuck, fortran\n\n\n Format to use Rextester is `@Yourassistantusername rex langcode|code`",
+            text=f"The list of valid languages are\n\n{rex_langs}\n\n\nFormat to use Rextester is `@Yourassistantusername rex langcode|code`",
         )
         await event.answer([resultm])
 
@@ -199,12 +277,14 @@ async def gsearch(q_event):
             thumb=wb(yeah, 0, "image/jpeg", []),
             text="**Yᴀʜᴏᴏ Sᴇᴀʀᴄʜ**\n\nYou didn't search anything",
             buttons=Button.switch_inline(
-                "Sᴇᴀʀᴄʜ Aɢᴀɪɴ", query="yahoo ", same_peer=True
+                "Sᴇᴀʀᴄʜ Aɢᴀɪɴ",
+                query="yahoo ",
+                same_peer=True,
             ),
         )
         await q_event.answer([kkkk])
     searcher = []
-    page = re.findall(r"page=\d+", match)
+    page = findall(r"page=\d+", match)
     cache = False
     try:
         page = page[0]
@@ -233,14 +313,18 @@ async def gsearch(q_event):
                         [Button.url("Lɪɴᴋ", url=f"{link}")],
                         [
                             Button.switch_inline(
-                                "Sᴇᴀʀᴄʜ Aɢᴀɪɴ", query="yahoo ", same_peer=True
+                                "Sᴇᴀʀᴄʜ Aɢᴀɪɴ",
+                                query="yahoo ",
+                                same_peer=True,
                             ),
                             Button.switch_inline(
-                                "Sʜᴀʀᴇ", query=f"yahoo {match}", same_peer=False
+                                "Sʜᴀʀᴇ",
+                                query=f"yahoo {match}",
+                                same_peer=False,
                             ),
                         ],
                     ],
-                )
+                ),
             )
         except IndexError:
             break
@@ -261,7 +345,7 @@ async def _(e):
         )
         await e.answer([kkkk])
     foles = []
-    aap = play_scraper.search(f)
+    aap = search(f)
     for z in aap:
         name = z["title"]
         desc = z["description"]
@@ -315,7 +399,7 @@ async def _(e):
         await e.answer([kkkk])
     page = 1
     start = (page - 1) * 3 + 1
-    urd = random.randrange(1, 3)
+    urd = randrange(1, 3)
     if urd == 1:
         da = "REDACTED_PUBLICATION_API_KEY"
     if urd == 2:
@@ -325,7 +409,7 @@ async def _(e):
     url = f"https://www.googleapis.com/customsearch/v1?key={da}&cx=25b3b50edb928435b&q={quer}&start={start}"
     data = requests.get(url).json()
     search_items = data.get("items")
-    play_scraper.search(quer)
+    search(quer)
     modss = []
     for a in search_items:
         title = a.get("title")
@@ -343,14 +427,18 @@ async def _(e):
                     [Button.url("Dᴏᴡɴʟᴏᴀᴅ", url=f"{link}")],
                     [
                         Button.switch_inline(
-                            "Mᴏʀᴇ Mᴏᴅs", query="mods ", same_peer=True
+                            "Mᴏʀᴇ Mᴏᴅs",
+                            query="mods ",
+                            same_peer=True,
                         ),
                         Button.switch_inline(
-                            "Sʜᴀʀᴇ", query=f"mods {quer}", same_peer=False
+                            "Sʜᴀʀᴇ",
+                            query=f"mods {quer}",
+                            same_peer=False,
                         ),
                     ],
                 ],
-            )
+            ),
         )
     await e.answer(modss)
 
@@ -365,7 +453,9 @@ async def clip(e):
             title="Search Something",
             text="**Cʟɪᴘᴀʀᴛ Sᴇᴀʀᴄʜ**\n\nYou didn't search anything",
             buttons=Button.switch_inline(
-                "Sᴇᴀʀᴄʜ Aɢᴀɪɴ", query="clipart ", same_peer=True
+                "Sᴇᴀʀᴄʜ Aɢᴀɪɴ",
+                query="clipart ",
+                same_peer=True,
             ),
         )
         await e.answer([kkkk])
