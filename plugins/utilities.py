@@ -373,8 +373,8 @@ async def _(event):
         common_chats,
     )
     if chk := is_gbanned(user_id):
-        caption += f"""<b>••Gʟᴏʙᴀʟʟʏ Bᴀɴɴᴇᴅ</b>: <code>True</code>
-<b>••Rᴇᴀsᴏɴ</b>: <code>{chk}</code>"""
+        caption += f"""<b>••Globally Banned</b>: <code>True</code>
+<b>••Reason</b>: <code>{chk}</code>"""
     await event.client.send_message(
         event.chat_id,
         caption,
@@ -486,7 +486,7 @@ async def abs_rmbg(event):
 )
 async def telegraphcmd(event):
     xx = await event.eor(get_string("com_1"))
-    match = event.pattern_match.group(1).strip() or "Ultroid"
+    match = event.pattern_match.group(1).strip() or "BoudyOS"
     reply = await event.get_reply_message()
     if not reply:
         return await xx.eor("`Reply to Message.`")
@@ -832,4 +832,3 @@ async def get_restricted_msg(event):
             await event.eor("`Cannot process this type of media.`")
     else:
         await event.eor("`No media found in the message.`")
-

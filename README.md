@@ -1,156 +1,112 @@
 <p align="center">
-  <img src="./resources/extras/logo_readme.jpg" alt="TeamUltroid Logo">
+  <img src="./resources/extras/boudyos_logo.png" width="280" alt="BoudyOS logo">
 </p>
-<h1 align="center">
-  <b>Ultroid - UserBot</b>
-</h1>
 
-<b>A stable pluggable Telegram userbot + Voice & Video Call music bot, based on Telethon.</b>
+<h1 align="center">BoudyOS</h1>
 
-[![](https://img.shields.io/badge/Ultroid-v0.8-crimson)](#)
-[![Stars](https://img.shields.io/github/stars/TeamUltroid/Ultroid?style=flat-square&color=yellow)](https://github.com/TeamUltroid/Ultroid/stargazers)
-[![Forks](https://img.shields.io/github/forks/TeamUltroid/Ultroid?style=flat-square&color=orange)](https://github.com/TeamUltroid/Ultroid/fork)
-[![Size](https://img.shields.io/github/repo-size/TeamUltroid/Ultroid?style=flat-square&color=green)](https://github.com/TeamUltroid/Ultroid/)   
-[![Python](https://img.shields.io/badge/Python-v3.10+-blue)](https://www.python.org/)
-[![CodeFactor](https://www.codefactor.io/repository/github/teamultroid/ultroid/badge/main)](https://www.codefactor.io/repository/github/teamultroid/ultroid/overview/main)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/TeamUltroid/Ultroid/graphs/commit-activity)
-[![Docker Pulls](https://img.shields.io/docker/pulls/theteamultroid/ultroid?style=flat-square)](https://img.shields.io/docker/pulls/theteamultroid/ultroid?style=flat-square)   
-[![Open Source Love svg2](https://badges.frapsoft.com/os/v2/open-source.svg?v=103)](https://github.com/TeamUltroid/Ultroid)
-[![Contributors](https://img.shields.io/github/contributors/TeamUltroid/Ultroid?style=flat-square&color=green)](https://github.com/TeamUltroid/Ultroid/graphs/contributors)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://makeapullrequest.com)
-[![License](https://img.shields.io/badge/License-AGPL-blue)](https://github.com/TeamUltroid/Ultroid/blob/main/LICENSE)
-----
-
-# Deploy
-- [Heroku](#deploy-to-heroku)
-- [Okteto](#deploy-to-okteto)
-- [Local Machine](#deploy-locally)
-
-# Documentation 
-[![Documentation](https://img.shields.io/badge/Documentation-Ultroid-blue)](http://ultroid.tech/)
-
-# Tutorial 
-- Full Tutorial - [![Full Tutorial](https://img.shields.io/badge/Watch%20Now-blue)](https://www.youtube.com/watch?v=0wAV7pUzhDQ)
-
-- Tutorial to get Redis URL and password - [here.](./resources/extras/redistut.md)
----
-
-## Deploy to Heroku
-Get the [Necessary Variables](#Necessary-Variables) and then click the button below!  
-
-<summary>Deploy To Heroku</summary>
-<p>
-<br>
-<a href="https://heroku.com/deploy">
-  <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
-</a>
+<p align="center">
+  A polished personal Telegram workspace built with Telethon.
 </p>
-## Deploy to Okteto
-Get the [Necessary Variables](#Necessary-Variables) and then click the button below!
 
-[![Develop on Okteto](https://okteto.com/develop-okteto.svg)](https://cloud.okteto.com/deploy?repository=https://github.com/TeamUltroid/Ultroid)
+## About
 
-## Deploy Locally
-- [Traditional Method](#local-deploy---traditional-method)
-- [Easy Method](#local-deploy---easy-method)
-- [Ultroid CLI](#ultroid-cli)
+BoudyOS is a personalized public fork of
+[TeamUltroid/Ultroid](https://github.com/TeamUltroid/Ultroid). It keeps Ultroid's
+plugin ecosystem, deployment model, session format, database contracts, and
+upstream-compatible internals while presenting a focused BoudyOS experience.
 
-### Local Deploy - Easy Method
-- Linux - `wget -O locals.py https://git.io/JY9UM && python3 locals.py`
-- Windows - `cd desktop ; wget https://git.io/JY9UM -o locals.py ; python locals.py`
-- Termux - `wget -O install-termux https://tiny.ultroid.tech/termux && bash install-termux`
+The `pyUltroid` package, `UltroidClient`, commands, callback data, environment
+keys, and database identifiers intentionally retain their upstream names for
+compatibility.
 
-### Local Deploy - Traditional Method
-- Get your [Necessary Variables](#Necessary-Variables)
-- Clone the repository:    
-`git clone https://github.com/TeamUltroid/Ultroid.git`
-- Go to the cloned folder:    
-`cd Ultroid`
-- Create a virtual env:      
-`virtualenv -p /usr/bin/python3 venv`
-`. ./venv/bin/activate`
-- Install the requirements:      
-`pip(3) install -U -r re*/st*/optional-requirements.txt`
-`pip(3) install -U -r requirements.txt`
-- Generate your `SESSION`:
-  - For Linux users:
-    `bash sessiongen`
-     or
-    `wget -O session.py https://git.io/JY9JI && python3 session.py`
-  - For Termux users:
-    `wget -O session.py https://git.io/JY9JI && python session.py`
-  - For Windows Users:
-    `cd desktop ; wget https://git.io/JY9JI -o ultroid.py ; python ultroid.py`
-- Fill your details in a `.env` file, as given in [`.env.sample`](https://github.com/TeamUltroid/Ultroid/blob/main/.env.sample).
-(You can either edit and rename the file or make a new file named `.env`.)
-- Run the bot:
-  - Linux Users:
-   `bash startup`
-  - Windows Users:
-    `python(3) -m pyUltroid`
+## Features
 
----
-## Necessary Variables
-- `SESSION` - SessionString for your accounts login session. Get it from [here](#Session-String)
+- Dashboard-based help for plugins, add-ons, voice chat, settings, and updates
+- Telegram assistant and private log-group integration
+- Optional official add-ons and voice-chat components
+- Redis, MongoDB, PostgreSQL, and local database support inherited from Ultroid
+- Docker, Heroku, Okteto, Termux, and local deployment paths
 
-One of the following database:
-- For **Redis** (tutorial [here](./resources/extras/redistut.md))
-  - `REDIS_URI` - Redis endpoint URL, from [redislabs](http://redislabs.com/).
-  - `REDIS_PASSWORD` - Redis endpoint Password, from [redislabs](http://redislabs.com/).
-- For **MONGODB**
-  - `MONGO_URI` - Get it from [mongodb](https://mongodb.com/atlas).
-- For **SQLDB**
-  - `DATABASE_URL`- Get it from [elephantsql](https://elephantsql.com).
+## Deploy
 
-## Session String
-Different ways to get your `SESSION`:
-* [![Run on Repl.it](https://replit.com/badge/github/TeamUltroid/Ultroid)](https://replit.com/@TeamUltroid/UltroidStringSession)
-* Linux : `wget -O session.py https://git.io/JY9JI && python3 session.py`
-* PowerShell : `cd desktop ; wget https://git.io/JY9JI ; python ultroid.py`
-* Termux : `wget -O session.py https://git.io/JY9JI && python session.py`
-* TelegramBot : [@SessionGeneratorBot](https://t.me/SessionGeneratorBot)
+### Requirements
 
----
+- Python 3.10 or newer
+- Telegram `API_ID`, `API_HASH`, and a user `SESSION`
+- One supported database configuration:
+  - `REDIS_URI` and `REDIS_PASSWORD`
+  - `MONGO_URI`
+  - `DATABASE_URL`
 
-# Core Contributor Team
+Never publish your `.env`, session string, bot token, database credentials, or
+generated session files.
 
-<table>
-  <tr>
-    <td align="center"><a href="https://github.com/xditya"><img src="https://avatars.githubusercontent.com/xditya" width="75px;" alt=""/><br/><sub><b>@xditya</b></sub></a></td>
-    <td align="center"><a href="https://github.com/1danish-00"><img src="https://avatars.githubusercontent.com/1danish-00" width="75px;" alt=""/><br/><sub><b>@1danish_00</b></sub></a></td>
-    <td align="center"><a href="https://github.com/buddhhu"><img src="https://avatars.githubusercontent.com/buddhhu" width="75px;" alt=""/><br/><sub><b>@buddhhu</b></sub></a></td>
-    <td align="center"><a href="https://github.com/TechiError"><img src="https://avatars.githubusercontent.com/TechiError" width="75px;" alt=""/><br/><sub><b>@TechiError</b></sub></a></td>
-  </tr>
-  <tr>
-    <td align="center"><a href="https://github.com/New-dev0"><img src="https://avatars.githubusercontent.com/New-dev0" width="75px;" alt=""/><br/><sub><b>@New-dev0</b></sub></a></td>
-    <td align="center"><a href="https://github.com/ArnabXD"><img src="https://avatars.githubusercontent.com/ArnabXD" width="75px;" alt=""/><br/><sub><b>@Arnab431</b></sub></a></td>
-    <td align="center"><a href="https://github.com/sppidy"><img src="https://avatars.githubusercontent.com/sppidy" width="75px;" alt=""/><br/><sub><b>@sppidy</b></sub></a></td>
-    <td align="center"><a href="https://github.com/Atul-Kumar-Jena"><img src="https://avatars.githubusercontent.com/Atul-kumar-Jena" width="75px;" alt=""/><br/><sub><b>@hellboi_atul</b></sub></a></td>
-  </tr>
-  <tr>
-    <td align="center"><a href="https://github.com/iAkashPattnaik"><img src="https://avatars.githubusercontent.com/iAkashPattnaik" width="75px;" alt=""/><br/><sub><b>@iAkashPattnaik</b></sub></a></td>
-  </tr>
-</table>
+### Local
 
-## Contributors
+```bash
+git clone https://github.com/boudywho/BoudyOS.git
+cd BoudyOS
+python3 -m venv venv
+. venv/bin/activate
+pip install -U -r requirements.txt
+cp .env.sample .env
+```
 
-<a href="https://github.com/TeamUltroid/Ultroid/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=TeamUltroid/Ultroid" />
-</a>
+Fill in `.env`, generate a session with `bash sessiongen` if needed, then run:
 
-We are highly grateful for all the contributions made by our amazing community! ❤️
+```bash
+bash startup
+```
 
----
+On Windows, use:
 
-# License
-[![License](https://www.gnu.org/graphics/agplv3-155x51.png)](LICENSE)   
-Ultroid is licensed under [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.en.html) v3 or later.
+```powershell
+python -m pyUltroid
+```
 
+### Docker Compose
 
----
-# Credits
-* [![TeamUltroid-Devs](https://img.shields.io/static/v1?label=Teamultroid&message=devs&color=critical)](https://t.me/UltroidDevs)
-* [Lonami](https://github.com/LonamiWebs/) for [Telethon.](https://github.com/LonamiWebs/Telethon)
-* [MarshalX](https://github.com/MarshalX) for [PyTgCalls.](https://github.com/MarshalX/tgcalls)
+Create `.env`, then run:
 
-> Made with 💕 by [@TeamUltroid](https://t.me/TeamUltroid).    
+```bash
+docker compose up --build -d
+```
+
+### Heroku
+
+Review [app.json](./app.json), configure the required variables in Heroku, and
+deploy this repository. The application uses the container stack defined by
+[heroku.yml](./heroku.yml).
+
+### Okteto
+
+The included [okteto-pipeline.yml](./okteto-pipeline.yml) and
+[docker-compose.yml](./docker-compose.yml) use the same environment variables
+as local deployment.
+
+## Updates and upstream compatibility
+
+BoudyOS preserves Ultroid's internal update assumptions where practical.
+Installations that track an `upstream` Git remote can continue to compare and
+pull upstream changes. Review upstream changes before applying them to a
+branded deployment.
+
+- BoudyOS source and support:
+  [github.com/boudywho/BoudyOS](https://github.com/boudywho/BoudyOS)
+- Upstream project:
+  [TeamUltroid/Ultroid](https://github.com/TeamUltroid/Ultroid)
+- Upstream add-ons:
+  [TeamUltroid/UltroidAddons](https://github.com/TeamUltroid/UltroidAddons)
+
+## License and credits
+
+BoudyOS remains licensed under the
+[GNU Affero General Public License v3 or later](./LICENSE). Existing copyright
+and license headers are preserved.
+
+The core architecture and substantial implementation come from
+[TeamUltroid](https://github.com/TeamUltroid/Ultroid) and its contributors.
+BoudyOS also inherits work built on
+[Telethon](https://github.com/LonamiWebs/Telethon) and
+[PyTgCalls](https://github.com/pytgcalls/pytgcalls). See the repository history
+for the complete contributor record.

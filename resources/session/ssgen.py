@@ -109,7 +109,10 @@ def telethon_session():
     except Exception as er:
         print("Unexpected Error Occurred while Creating Session")
         print(er)
-        print("If you think It as a Bug, Report to @UltroidSupportChat.\n\n")
+        print(
+            "If this looks like a bug, report it at "
+            "https://github.com/boudywho/BoudyOS/issues.\n"
+        )
 
 
 def pyro_session():
@@ -136,7 +139,7 @@ def pyro_session():
             ss = pyro.export_session_string()
             pyro.send_message(
                 "me",
-                f"`{ss}`\n\nAbove is your Pyrogram Session String for @TheUltroid. **DO NOT SHARE it.**",
+                f"`{ss}`\n\nThis is your BoudyOS Pyrogram session string. **DO NOT SHARE IT.**",
             )
             print("Session has been sent to your saved messages!")
             exit(0)

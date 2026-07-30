@@ -7,7 +7,6 @@
 
 import asyncio
 import os
-import random
 import shutil
 import time
 from datetime import datetime, timezone as dt_timezone
@@ -34,7 +33,6 @@ from telethon.tl.functions.channels import (
     EditPhotoRequest,
     InviteToChannelRequest,
 )
-from telethon.tl.functions.channels import JoinChannelRequest
 from telethon.tl.functions.contacts import UnblockRequest
 from telethon.tl.types import (
     ChatAdminRights,
@@ -50,6 +48,43 @@ from ..fns.helper import download_file, inline_mention, updater
 db_url = 0
 REDIS_KEEPALIVE_KEY = "KEEP_ACTIVE"
 REDIS_KEEPALIVE_INTERVAL_SECONDS = 7 * 24 * 60 * 60
+BOUDYOS_BRAND_VERSION_KEY = "BOUDYOS_BRAND_VERSION"
+BOUDYOS_BRAND_VERSION = 1
+BOTFATHER_SUCCESS_INDICATORS = ("done", "success", "successfully")
+BOTFATHER_ERROR_INDICATORS = (
+    "cannot",
+    "can't",
+    "error",
+    "failed",
+    "flood",
+    "invalid",
+    "not allowed",
+    "not updated",
+    "sorry",
+    "too many",
+    "try again",
+)
+
+
+def _botfather_mutation_succeeded(response):
+    """Return whether BotFather explicitly confirmed a completed mutation."""
+    text = getattr(response, "text", response) or ""
+    normalized = " ".join(str(text).casefold().split())
+    if any(indicator in normalized for indicator in BOTFATHER_ERROR_INDICATORS):
+        return False
+    return any(indicator in normalized for indicator in BOTFATHER_SUCCESS_INDICATORS)
+
+
+async def _latest_botfather_response(client):
+    messages = await client.get_messages("botfather", limit=1)
+    return messages[0] if messages else None
+
+
+async def _require_botfather_success(client, operation):
+    response = await _latest_botfather_response(client)
+    if not _botfather_mutation_succeeded(response):
+        text = getattr(response, "text", response) or "no response"
+        raise RuntimeError(f"BotFather rejected {operation}: {text}")
 
 
 async def autoupdate_local_database():
@@ -152,9 +187,7 @@ async def startup_stuff():
         except AttributeError as er:
             LOGS.debug(er)
         except BaseException:
-            LOGS.critical(
-                "Incorrect Timezone ,\nCheck Available Timezone From Here https://graph.org/Ultroid-06-18-2\nSo Time is Default UTC"
-            )
+            LOGS.warning("Invalid time zone configured; falling back to UTC.")
             os.environ["TZ"] = "UTC"
             time.tzset()
 
@@ -192,13 +225,13 @@ async def autobot():
     if udB.get_key("BOT_TOKEN"):
         return
     await ultroid_bot.start()
-    LOGS.info("MAKING A TELEGRAM BOT FOR YOU AT @BotFather, Kindly Wait")
+    LOGS.info("Creating your BoudyOS assistant with @BotFather...")
     who = ultroid_bot.me
-    name = who.first_name + "'s Bot"
+    name = who.first_name + "'s BoudyOS Assistant"
     if who.username:
         username = who.username + "_bot"
     else:
-        username = "ultroid_" + (str(who.id))[5:] + "_bot"
+        username = "boudyos_" + (str(who.id))[5:] + "_bot"
     bf = "@BotFather"
     await ultroid_bot(UnblockRequest(bf))
     await ultroid_bot.send_message(bf, "/cancel")
@@ -217,7 +250,7 @@ async def autobot():
     await asyncio.sleep(1)
     isdone = (await ultroid_bot.get_messages(bf, limit=1))[0].text
     if not isdone.startswith("Good."):
-        await ultroid_bot.send_message(bf, "My Assistant Bot")
+        await ultroid_bot.send_message(bf, "BoudyOS Assistant")
         await asyncio.sleep(1)
         isdone = (await ultroid_bot.get_messages(bf, limit=1))[0].text
         if not isdone.startswith("Good."):
@@ -233,7 +266,7 @@ async def autobot():
     await ultroid_bot.send_read_acknowledge("botfather")
     if isdone.startswith("Sorry,"):
         ran = randint(1, 100)
-        username = "ultroid_" + (str(who.id))[6:] + str(ran) + "_bot"
+        username = "boudyos_" + (str(who.id))[6:] + str(ran) + "_bot"
         await ultroid_bot.send_message(bf, username)
         await asyncio.sleep(1)
         isdone = (await ultroid_bot.get_messages(bf, limit=1))[0].text
@@ -241,9 +274,7 @@ async def autobot():
         token = isdone.split("`")[1]
         udB.set_key("BOT_TOKEN", token)
         await enable_inline(ultroid_bot, username)
-        LOGS.info(
-            f"Done. Successfully created @{username} to be used as your assistant bot!"
-        )
+        LOGS.info("Created BoudyOS assistant @%s.", username)
     else:
         LOGS.info(
             "Please Delete Some Of your Telegram bots at @Botfather or Set Var BOT_TOKEN with token of a bot"
@@ -278,12 +309,15 @@ async def autopilot():
             msg_ = "'LOG_CHANNEL' not found! Add it in order to use 'BOTMODE'"
             LOGS.error(msg_)
             return await _save(msg_)
-        LOGS.info("Creating a Log Channel for You!")
+        LOGS.info("Creating the BoudyOS log group...")
         try:
             r = await ultroid_bot(
                 CreateChannelRequest(
-                    title="My Ultroid Logs",
-                    about="My Ultroid Log Group\n\n Join @TeamUltroid",
+                    title="BoudyOS Logs",
+                    about=(
+                        "Private logs for BoudyOS.\n"
+                        "https://github.com/boudywho/BoudyOS"
+                    ),
                     megagroup=True,
                 ),
             )
@@ -348,55 +382,48 @@ async def autopilot():
                 LOGS.info("Error while promoting assistant in Log Channel..")
                 LOGS.exception(er)
     if isinstance(chat.photo, ChatPhotoEmpty):
-        photo, _ = await download_file(
-            "https://graph.org/file/27c6812becf6f376cbb10.jpg", "channelphoto.jpg"
-        )
-        ll = await ultroid_bot.upload_file(photo)
         try:
+            photo = "resources/extras/boudyos_avatar.jpg"
+            uploaded = await ultroid_bot.upload_file(photo)
             await ultroid_bot(
-                EditPhotoRequest(int(channel), InputChatUploadedPhoto(ll))
+                EditPhotoRequest(int(channel), InputChatUploadedPhoto(uploaded))
             )
         except BaseException as er:
-            LOGS.exception(er)
-        os.remove(photo)
+            LOGS.warning("Could not set the optional BoudyOS log-group image: %s", er)
 
 
 # customize assistant
 
 
-async def customize():
-    from .. import asst, udB, ultroid_bot
-
-    rem = None
+async def _apply_boudyos_branding(asst, udB, ultroid_bot):
     try:
-        chat_id = udB.get_key("LOG_CHANNEL")
-        if asst.me.photo:
+        owner = getattr(ultroid_bot, "me", None)
+        assistant = getattr(asst, "me", None)
+        if (
+            asst is ultroid_bot
+            or getattr(owner, "bot", None) is not False
+            or getattr(assistant, "bot", None) is not True
+        ):
             return
-        LOGS.info("Customising Your Assistant Bot in @BOTFATHER")
-        UL = f"@{asst.me.username}"
-        if not ultroid_bot.me.username:
-            sir = ultroid_bot.me.first_name
+        if udB.get_key(BOUDYOS_BRAND_VERSION_KEY) == BOUDYOS_BRAND_VERSION:
+            return
+        chat_id = udB.get_key("LOG_CHANNEL")
+        LOGS.info("Customizing the BoudyOS assistant with @BotFather...")
+        UL = f"@{assistant.username}"
+        if not owner.username:
+            sir = owner.first_name
         else:
-            sir = f"@{ultroid_bot.me.username}"
-        file = random.choice(
-            [
-                "https://graph.org/file/92cd6dbd34b0d1d73a0da.jpg",
-                "https://graph.org/file/a97973ee0425b523cdc28.jpg",
-                "resources/extras/ultroid_assistant.jpg",
-            ]
-        )
-        if not os.path.exists(file):
-            file, _ = await download_file(file, "profile.jpg")
-            rem = True
+            sir = f"@{owner.username}"
+        file = "resources/extras/boudyos_avatar.jpg"
         msg = await asst.send_message(
-            chat_id, "**Auto Customisation** Started on @Botfather"
+            chat_id, "**BoudyOS assistant customization** started in @BotFather."
         )
         await asyncio.sleep(1)
         await ultroid_bot.send_message("botfather", "/cancel")
         await asyncio.sleep(1)
         await ultroid_bot.send_message("botfather", "/setuserpic")
         await asyncio.sleep(1)
-        isdone = (await ultroid_bot.get_messages("botfather", limit=1))[0].text
+        isdone = (await _latest_botfather_response(ultroid_bot)).text
         if isdone.startswith("Invalid bot"):
             LOGS.info("Error while trying to customise assistant, skipping...")
             return
@@ -404,29 +431,49 @@ async def customize():
         await asyncio.sleep(1)
         await ultroid_bot.send_file("botfather", file)
         await asyncio.sleep(2)
+        await _require_botfather_success(ultroid_bot, "profile photo")
+        await ultroid_bot.send_message("botfather", "/setname")
+        await asyncio.sleep(1)
+        await ultroid_bot.send_message("botfather", UL)
+        await asyncio.sleep(1)
+        await ultroid_bot.send_message("botfather", "BoudyOS Assistant")
+        await asyncio.sleep(2)
+        await _require_botfather_success(ultroid_bot, "name")
         await ultroid_bot.send_message("botfather", "/setabouttext")
         await asyncio.sleep(1)
         await ultroid_bot.send_message("botfather", UL)
         await asyncio.sleep(1)
         await ultroid_bot.send_message(
-            "botfather", f"✨ Hello ✨!! I'm Assistant Bot of {sir}"
+            "botfather", f"BoudyOS assistant for {sir}"
         )
         await asyncio.sleep(2)
+        await _require_botfather_success(ultroid_bot, "about text")
         await ultroid_bot.send_message("botfather", "/setdescription")
         await asyncio.sleep(1)
         await ultroid_bot.send_message("botfather", UL)
         await asyncio.sleep(1)
         await ultroid_bot.send_message(
             "botfather",
-            f"✨ Powerful Ultroid Assistant Bot ✨\n✨ Master ~ {sir} ✨\n\n✨ Powered By ~ @TeamUltroid ✨",
+            (
+                f"Personal Telegram assistant for {sir}, powered by BoudyOS.\n"
+                "https://github.com/boudywho/BoudyOS"
+            ),
         )
         await asyncio.sleep(2)
-        await msg.edit("Completed **Auto Customisation** at @BotFather.")
-        if rem:
-            os.remove(file)
-        LOGS.info("Customisation Done")
+        await _require_botfather_success(ultroid_bot, "description")
+        await msg.edit("BoudyOS assistant customization completed.")
+        udB.set_key(BOUDYOS_BRAND_VERSION_KEY, BOUDYOS_BRAND_VERSION)
+        LOGS.info("Assistant customization completed.")
     except Exception as e:
-        LOGS.exception(e)
+        LOGS.warning(
+            "Assistant branding was not completed; it will retry later: %s", e
+        )
+
+
+async def customize():
+    from .. import asst, udB, ultroid_bot
+
+    await _apply_boudyos_branding(asst, udB, ultroid_bot)
 
 
 async def plug(plugin_channels):
@@ -459,7 +506,7 @@ async def plug(plugin_channels):
                     try:
                         load_addons(plugin)
                     except Exception as e:
-                        LOGS.info(f"Ultroid - PLUGIN_CHANNEL - ERROR - {plugin}")
+                        LOGS.info(f"BoudyOS - plugin channel - error - {plugin}")
                         LOGS.exception(e)
                         os.remove(plugin)
         except Exception as er:
@@ -473,13 +520,20 @@ async def ready():
     chat_id = udB.get_key("LOG_CHANNEL")
     spam_sent = None
     if not udB.get_key("INIT_DEPLOY"):  # Detailed Message at Initial Deploy
-        MSG = """🎇 **Thanks for Deploying Ultroid Userbot!**
-• Here, are the Some Basic stuff from, where you can Know, about its Usage."""
-        PHOTO = "https://graph.org/file/54a917cc9dbb94733ea5f.jpg"
-        BTTS = Button.inline("• Click to Start •", "initft_2")
+        MSG = """**Welcome to BoudyOS**
+
+Your personal Telegram workspace is ready. Open the guide to review the essentials."""
+        PHOTO = "resources/extras/boudyos_avatar.jpg"
+        BTTS = Button.inline("Open guide", "initft_2")
         udB.set_key("INIT_DEPLOY", "Done")
     else:
-        MSG = f"**Ultroid has been deployed!**\n➖➖➖➖➖➖➖➖➖➖\n**UserMode**: {inline_mention(ultroid_bot.me)}\n**Assistant**: @{asst.me.username}\n➖➖➖➖➖➖➖➖➖➖\n**Support**: @TeamUltroid\n➖➖➖➖➖➖➖➖➖➖"
+        MSG = (
+            "**BoudyOS is ready.**\n\n"
+            f"**User:** {inline_mention(ultroid_bot.me)}\n"
+            f"**Assistant:** @{asst.me.username}\n"
+            "**Support:** [BoudyOS on GitHub]"
+            "(https://github.com/boudywho/BoudyOS)"
+        )
         BTTS, PHOTO = None, None
         prev_spam = udB.get_key("LAST_UPDATE_LOG_SPAM")
         if prev_spam:
@@ -506,12 +560,6 @@ async def ready():
             LOGS.exception(ef)
     if spam_sent and not spam_sent.media:
         udB.set_key("LAST_UPDATE_LOG_SPAM", spam_sent.id)
-
-    try:
-        await ultroid_bot(JoinChannelRequest("TheUltroid"))
-    except Exception as er:
-        LOGS.exception(er)
-
 
 async def WasItRestart(udb):
     key = udb.get_key("_RESTART")

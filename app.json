@@ -1,28 +1,28 @@
 {
-    "name": "Ultroid UserBot",
-    "description": "Pluggable telegram userbot, made in python using Telethon.",
-    "logo": "https://graph.org/file/031957757a4f6a5191040.jpg",
+    "name": "BoudyOS",
+    "description": "A polished personal Telegram workspace built with Telethon.",
+    "logo": "https://raw.githubusercontent.com/boudywho/BoudyOS/main/resources/extras/boudyos_logo.png",
     "keywords": [
         "Telethon",
         "telegram",
         "userbot",
         "python",
-        "ultroid"
+        "boudyos"
     ],
-    "repository": "https://github.com/TeamUltroid/Ultroid",
-    "website": "https://ultroid.tech",
-    "success_url": "https://t.me/TeamUltroid",
+    "repository": "https://github.com/boudywho/BoudyOS",
+    "website": "https://github.com/boudywho/BoudyOS",
+    "success_url": "https://github.com/boudywho/BoudyOS",
     "stack": "container",
     "env": {
         "API_ID": {
-            "description": "You api id, from my.telegram.org or @ScrapperRoBot.",
-            "value": "", 
-            "required": false
+            "description": "Your Telegram API ID from my.telegram.org.",
+            "value": "",
+            "required": true
         },
         "API_HASH": {
-            "description": "You api hash, from my.telegram.org or @ScrapperRoBot.",
+            "description": "Your Telegram API hash from my.telegram.org.",
             "value": "",
-            "required": false
+            "required": true
         },
         "SESSION": {
             "description": "Session String (telethon or pyrogram) for your telegram user account. The userbot will NOT work without a session string!!",
@@ -48,7 +48,7 @@
         }
     },
     "formation": {
-        "ultroid": {
+        "boudyos": {
             "quantity": 1,
             "size": "eco"
         }

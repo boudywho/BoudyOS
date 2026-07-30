@@ -50,8 +50,8 @@ upage = 0
 
 SUP_BUTTONS = [
     [
-        Button.url("• Repo •", url="https://github.com/TeamUltroid/Ultroid"),
-        Button.url("• Support •", url="t.me/UltroidSupportChat"),
+        Button.url("Source", url="https://github.com/boudywho/BoudyOS"),
+        Button.url("Support", url="https://github.com/boudywho/BoudyOS/issues"),
     ],
 ]
 
@@ -60,19 +60,20 @@ SUP_BUTTONS = [
 
 @in_pattern(owner=True, func=lambda x: not x.text)
 async def inline_alive(o):
-    TLINK = inline_pic() or "https://graph.org/file/74d6259983e0642923fdb.jpg"
-    MSG = "• **Ultroid Userbot •**"
-    WEB0 = InputWebDocument(
-        "https://graph.org/file/acd4f5d61369f74c5e7a7.jpg", 0, "image/jpg", []
+    TLINK = inline_pic() or (
+        "https://raw.githubusercontent.com/boudywho/BoudyOS/main/"
+        "resources/extras/boudyos_avatar.jpg"
     )
+    MSG = "**BoudyOS**"
+    WEB0 = InputWebDocument(TLINK, 0, "image/jpeg", [])
     RES = [
         await o.builder.article(
             type="photo",
             text=MSG,
             include_media=True,
             buttons=SUP_BUTTONS,
-            title="Ultroid Userbot",
-            description="Userbot | Telethon",
+            title="BoudyOS",
+            description="Personal Telegram workspace",
             url=TLINK,
             thumb=WEB0,
             content=InputWebDocument(TLINK, 0, "image/jpg", []),
@@ -82,7 +83,7 @@ async def inline_alive(o):
         RES,
         private=True,
         cache_time=300,
-        switch_pm="👥 ULTROID PORTAL",
+        switch_pm="BoudyOS",
         switch_pm_param="start",
     )
 
@@ -107,7 +108,7 @@ async def inline_handler(event):
         )
     else:
         result = await event.builder.article(
-            title="Ultroid Help Menu", text=text, buttons=_main_help_menu
+            title="BoudyOS dashboard", text=text, buttons=_main_help_menu
         )
     await event.answer([result], private=True, cache_time=300, gallery=True)
 
@@ -150,14 +151,14 @@ async def setting(event):
         link_preview=False,
         buttons=[
             [
-                Button.inline("•Pɪɴɢ•", data="pkng"),
-                Button.inline("•Uᴘᴛɪᴍᴇ•", data="upp"),
+                Button.inline("Ping", data="pkng"),
+                Button.inline("Uptime", data="upp"),
             ],
             [
-                Button.inline("•Stats•", data="alive"),
-                Button.inline("•Uᴘᴅᴀᴛᴇ•", data="doupdate"),
+                Button.inline("Stats", data="alive"),
+                Button.inline("Updates", data="doupdate"),
             ],
-            [Button.inline("« Bᴀᴄᴋ", data="open")],
+            [Button.inline("Back", data="open")],
         ],
     )
 
@@ -208,7 +209,7 @@ async def uptd_plugin(event):
         buttons.append(
             [
                 Button.inline(
-                    "« Sᴇɴᴅ Pʟᴜɢɪɴ »",
+                    "Send plugin",
                     data=data,
                 )
             ]
@@ -218,7 +219,7 @@ async def uptd_plugin(event):
         data += f"|{index}"
     buttons.append(
         [
-            Button.inline("« Bᴀᴄᴋ", data=data),
+            Button.inline("Back", data=data),
         ]
     )
     try:
@@ -248,8 +249,8 @@ async def _(event):
             get_string("upd_5"),
             file="ultroid_updates.txt",
             buttons=[
-                [Button.inline("• Uᴘᴅᴀᴛᴇ Nᴏᴡ •", data="updatenow")],
-                [Button.inline("« Bᴀᴄᴋ", data="ownr")],
+                [Button.inline("Update now", data="updatenow")],
+                [Button.inline("Back", data="ownr")],
             ],
         )
         remove("ultroid_updates.txt")
@@ -258,7 +259,7 @@ async def _(event):
             changelog_str,
             buttons=[
                 [Button.inline("Update Now", data="updatenow")],
-                [Button.inline("« Bᴀᴄᴋ", data="ownr")],
+                [Button.inline("Back", data="ownr")],
             ],
             parse_mode="html",
         )
@@ -269,14 +270,14 @@ async def _(event):
     start = datetime.now()
     end = datetime.now()
     ms = (end - start).microseconds
-    pin = f"🌋Pɪɴɢ = {ms} microseconds"
+    pin = f"Ping: {ms} microseconds"
     await event.answer(pin, cache_time=0, alert=True)
 
 
 @callback(data="upp", owner=True)
 async def _(event):
     uptime = time_formatter((time.time() - start_time) * 1000)
-    pin = f"🙋Uᴘᴛɪᴍᴇ = {uptime}"
+    pin = f"Uptime: {uptime}"
     await event.answer(pin, cache_time=0, alert=True)
 
 
@@ -291,7 +292,7 @@ async def _(e):
     button = InButtons.copy()
     button.append(
         [
-            Button.inline("« Bᴀᴄᴋ", data="open"),
+            Button.inline("Back", data="open"),
         ],
     )
     await e.edit(buttons=button, link_preview=False)
@@ -318,7 +319,7 @@ async def opner(event):
 async def on_plug_in_callback_query_handler(event):
     await event.edit(
         get_string("inline_5"),
-        buttons=Button.inline("Oᴘᴇɴ Aɢᴀɪɴ", data="open"),
+        buttons=Button.inline("Open again", data="open"),
     )
 
 
@@ -339,17 +340,17 @@ def page_num(index, key):
         new_ = fl_[0] if fl_ else []
         index = 0
     if index == 0 and len(fl_) == 1:
-        new_.append([Button.inline("« Bᴀᴄᴋ »", data="open")])
+        new_.append([Button.inline("Back", data="open")])
     else:
         new_.append(
             [
                 Button.inline(
-                    "« Pʀᴇᴠɪᴏᴜs",
+                    "Previous",
                     data=f"uh_{key}_{index-1}",
                 ),
-                Button.inline("« Bᴀᴄᴋ »", data="open"),
+                Button.inline("Back", data="open"),
                 Button.inline(
-                    "Nᴇxᴛ »",
+                    "Next",
                     data=f"uh_{key}_{index+1}",
                 ),
             ]
@@ -402,7 +403,7 @@ async def ibuild(e):
                     results = [
                         await builder.document(
                             _pic,
-                            title="Ultroid Op",
+                            title="BoudyOS operator",
                             text=txt,
                             description="@TeamUltroid",
                             buttons=btn,
@@ -417,7 +418,7 @@ async def ibuild(e):
                     cont = InputWebDocument(pic, 0, mime_type, [])
                 results = [
                     await builder.article(
-                        title="Ultroid Op",
+                        title="BoudyOS operator",
                         type=_type,
                         text=txt,
                         description="@TeamUltroid",
@@ -432,7 +433,9 @@ async def ibuild(e):
         except Exception as er:
             LOGS.exception(er)
     result = [
-        await builder.article("Ultroid Op", text=txt, link_preview=False, buttons=btn)
+        await builder.article(
+            "BoudyOS operator", text=txt, link_preview=False, buttons=btn
+        )
     ]
     await e.answer(result)
 

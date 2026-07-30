@@ -10,37 +10,26 @@ import re
 from . import *
 
 STRINGS = {
-    1: """🎇 **Thanks for Deploying Ultroid Userbot!**
+    1: """**Welcome to BoudyOS**
 
-• Here, are the Some Basic stuff from, where you can Know, about its Usage.""",
-    2: """🎉** About Ultroid**
+Your personal Telegram workspace is ready. This short guide covers the essentials.""",
+    2: """**About BoudyOS**
 
-🧿 Ultroid is Pluggable and powerful Telethon Userbot, made in Python from Scratch. It is Aimed to Increase Security along with Addition of Other Useful Features.
+BoudyOS is a modular Telegram userbot built with Telethon. It is a personalized fork of [TeamUltroid/Ultroid](https://github.com/TeamUltroid/Ultroid).
 
-❣ Made by **@TeamUltroid**""",
-    3: """**💡• FAQs •**
+Source and support: [github.com/boudywho/BoudyOS](https://github.com/boudywho/BoudyOS)""",
+    3: """**Getting started**
 
--> [Username Tracker](https://t.me/UltroidUpdates/24)
--> [Keeping Custom Addons Repo](https://t.me/UltroidUpdates/28)
--> [Disabling Deploy message](https://t.me/UltroidUpdates/27)
--> [Setting up TimeZone](https://t.me/UltroidUpdates/22)
--> [About Inline PmPermit](https://t.me/UltroidUpdates/21)
--> [About Dual Mode](https://t.me/UltroidUpdates/18)
--> [Custom Thumbnail](https://t.me/UltroidUpdates/13)
--> [About FullSudo](https://t.me/UltroidUpdates/11)
--> [Setting Up PmBot](https://t.me/UltroidUpdates/2)
--> [Also Check](https://t.me/UltroidUpdates/14)
+Use the dashboard to browse plugins, add-ons, voice-chat tools, settings, and updates.
 
-**• To Know About Updates**
-  - Join @TeamUltroid.""",
-    4: f"""• `To Know All Available Commands`
+Keep your session string, bot token, and database credentials private.""",
+    4: f"""**Commands**
 
-  - `{HNDLR}help`
-  - `{HNDLR}cmds`""",
-    5: """• **For Any Other Query or Suggestion**
-  - Move to **@UltroidSupportChat**.
+• `{HNDLR}help` — open the dashboard
+• `{HNDLR}cmds` — list available command groups""",
+    5: """**You are all set.**
 
-• Thanks for Reaching till END.""",
+For source, updates, or support, visit [BoudyOS on GitHub](https://github.com/boudywho/BoudyOS).""",
 }
 
 
@@ -50,15 +39,15 @@ async def init_depl(e):
     if CURRENT == 5:
         return await e.edit(
             STRINGS[5],
-            buttons=Button.inline("<< Back", "initbk_4"),
+            buttons=Button.inline("Back", "initbk_4"),
             link_preview=False,
         )
 
     await e.edit(
         STRINGS[CURRENT],
         buttons=[
-            Button.inline("<<", f"initbk_{str(CURRENT - 1)}"),
-            Button.inline(">>", f"initft_{str(CURRENT + 1)}"),
+            Button.inline("Back", f"initbk_{str(CURRENT - 1)}"),
+            Button.inline("Next", f"initft_{str(CURRENT + 1)}"),
         ],
         link_preview=False,
     )
@@ -70,15 +59,15 @@ async def ineiq(e):
     if CURRENT == 1:
         return await e.edit(
             STRINGS[1],
-            buttons=Button.inline("Start Back >>", "initft_2"),
+            buttons=Button.inline("Start again", "initft_2"),
             link_preview=False,
         )
 
     await e.edit(
         STRINGS[CURRENT],
         buttons=[
-            Button.inline("<<", f"initbk_{str(CURRENT - 1)}"),
-            Button.inline(">>", f"initft_{str(CURRENT + 1)}"),
+            Button.inline("Back", f"initbk_{str(CURRENT - 1)}"),
+            Button.inline("Next", f"initft_{str(CURRENT + 1)}"),
         ],
         link_preview=False,
     )

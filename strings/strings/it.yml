@@ -19,17 +19,17 @@ autopic_2: "Nessun risultato trovato per `{}`"
 autopic_3: "Hai una raccolta`{}` correlata alla tua ricerca! \nAvvio di Autopic!"
 
 # inline
-inline_1: "[Supporto Ultroid](t.me/UltroidSupportChat)\n\n
+inline_1: "[Supporto BoudyOS](https://github.com/boudywho/BoudyOS/issues)\n\n
 **Menù di aiuto di {}.\n\n
-Pʟᴜɢɪɴs ~ {}**"
-inline_2: "[Supporto Ultroid](t.me/UltroidSupportChat)\n\n
+Plugins ~ {}**"
+inline_2: "[Supporto BoudyOS](https://github.com/boudywho/BoudyOS/issues)\n\n
 **Menù di aiuto di {}.\n\n
-Aᴅᴅᴏɴs ~ {}**"
-inline_3: "[Supporto Ultroid](t.me/UltroidSupportChat)\n\n
+Addons ~ {}**"
+inline_3: "[Supporto BoudyOS](https://github.com/boudywho/BoudyOS/issues)\n\n
 **Menù di aiuto di {}.\n\n
-Aᴅᴅᴏɴs ~ {}\n\n
+Addons ~ {}\n\n
 Vai e aggiungi la variabile ADDONS con valore true**"
-inline_4: "** Bot di {}\n\nMᴀɪɴ Mᴇɴᴜ\n\nPʟᴜɢɪɴs ~ {}\nAᴅᴅᴏɴs ~ {}\nComandi Totali~ {}**"
+inline_4: "**BoudyOS**\nSpazio Telegram personale di **{}**\n\n**Panoramica**\n• Plugin: {}\n• Componenti aggiuntivi: {}\n• Comandi: {}\n\nScegli una categoria qui sotto."
 inline_5: "**Menu è stato chiuso**"
 
 # tagnotif
@@ -56,18 +56,18 @@ afk_5: "`Andando AFK.`\n\n
 afk_6: "Sto andando AFK."
 
 # bot
-alive_1: "**L'Ultroid Userbot...**\n\n
+alive_1: "**L'BoudyOS Userbot...**\n\n
 **{}**\n\n
 ┏━━━━━━━━━━━━━━━━━━━━━\n
 ┣ **Owner** - `{}`\n
 ┣ **Version** - `{}`\n
-┣ **Py-Ultroid** - `{}`\n
+┣ **Py-BoudyOS** - `{}`\n
 ┣ **UpTime** - `{}`\n
 ┣ **Python** - `{}`\n
 ┣ **Telethon** - `{}`\n
 ┣ **Branch** - `{}`\n
 ┗━━━━━━━━━━━━━━━━━━━━━"
-log: "**Heroku** Logs di Ultroid.\nIncollati [qui]({})!"
+log: "**Heroku** Logs di BoudyOS.\nIncollati [qui]({})!"
 ping: "**Pong !!** `{}ms`\n**Uptime** - `{}`"
 usage: "**⚙️ Utilizzo di Dyno ⚙️**:\n\n
  -> `Utilizzo di Dyno per`  **{}**:\n
@@ -145,10 +145,10 @@ sf_14: "SuperFBan completato.\nFederali totali - {}.\nEsclusi - {}.\n Colpiti {}
 sf_15: "Avvio di un Mass-UnFedBan..."
 sf_16: "SuperUnFBan Completato.\nFederali totali - {}.\nEsclusi - {}.\n Colpiti {} federali.\n#TB"
 sf_17: "`Dammi l'ID di qualcuno o rispondi al messaggio di qualcuno per controllare il suo fedstat.`"
-sf_18: "Elenco dei federali {} è stato bannato\n\nRaccolti utilizzando Ultroid."
+sf_18: "Elenco dei federali {} è stato bannato\n\nRaccolti utilizzando BoudyOS."
 sf_19: "**Errore**\n `Sblocca` @MissRose_Bot `e riprova ancora!"
 sf_20: "`Estrazione di informazioni...`"
-sf_21: "\n\nFedInfo estratto da Ultroid"
+sf_21: "\n\nFedInfo estratto da BoudyOS"
 
 # gdrive
 gdrive_1: "`Hai già autorizzato con Google Drive`"
@@ -156,7 +156,7 @@ gdrive_2: "Vai [qui](https://console.developers.google.com/flows/enableapi?apiid
 Invia il tuo GDRIVE_CLIENT_ID e GDRIVE_CLIENT_SECRET come questo.\n`GDRIVE_CLIENT_ID GDRIVE_CLIENT_SECRET` separati dagli spazi."
 gdrive_3: "`Client Id sbagliato`"
 gdrive_4: "`Qualcosa è andato storto! Invia `/auth` di nuovo.\nSe lo stesso accade, contatta '@TeamUltroid"
-gdrive_5: "`Successo!\nSei pronto per utilizzare Google Drive con Ultroid Userbot.`"
+gdrive_5: "`Successo!\nSei pronto per utilizzare Google Drive con BoudyOS Userbot.`"
 gdrive_6: "`Vai a `{}` e invia ``/auth.`"
 gdrive_7: "**File caricato con successo su G-Drive:**\n\n[{}]({})"
 
@@ -235,7 +235,7 @@ vcbot_5: "`Ricointing di questa chat vocale."
 calc_1: "• Calcolatore in linea ultroide •"
 autopic_4: "L'autopico non era in uso !!"
 ascii_2: "`Convertirsi in html ...`"
-help_bot: "• `{i} Alive` |`{i} vivo inline`\n    Controlla se il tuo bot funziona.\n\n• `{i} ping`\n    Controlla i tempi di risposta di Ultroid.\n\n• `{i} update`\n    Vedi Changelogs se è disponibile un aggiornamento.\n\n• `{i} cmds`\n    Visualizza tutti i nomi dei plugin.\n\n• `{i} riavvio`\n    Per riavviare il tuo bot.\n\n• `{i} logs (sys)`\n    Ottieni i registri completi del terminale.\n• `{i} logs carbon`\n    Ottieni i registri dei sistemi carbonizzati.\n• `{i} logs Heroku`\n   Ottieni le ultime 100 righe di tronchi Heroku.\n\n• `{i} Shutdown`\n    Spegni il tuo bot."
+help_bot: "• `{i} Alive` |`{i} vivo inline`\n    Controlla se il tuo bot funziona.\n\n• `{i} ping`\n    Controlla i tempi di risposta di BoudyOS.\n\n• `{i} update`\n    Vedi Changelogs se è disponibile un aggiornamento.\n\n• `{i} cmds`\n    Visualizza tutti i nomi dei plugin.\n\n• `{i} riavvio`\n    Per riavviare il tuo bot.\n\n• `{i} logs (sys)`\n    Ottieni i registri completi del terminale.\n• `{i} logs carbon`\n    Ottieni i registri dei sistemi carbonizzati.\n• `{i} logs Heroku`\n   Ottieni le ultime 100 righe di tronchi Heroku.\n\n• `{i} Shutdown`\n    Spegni il tuo bot."
 ascii_1: "`Rispondi all'immagine."
 sts_2: "`Rispondi a un adesivo animato ...`"
 ban_4: "{} ** è stato bandito da ** {} ** in ** `{}`"
@@ -268,12 +268,12 @@ help_autoban: "• `{i} autokick <on/off>`\n    On - per abilitare.\n    OFF - P
 can_2: "∆ #usernameupdate\n\n@{} ha modificato il nome utente in @{}"
 aki_1: "Il gioco è stato chiuso ...."
 youtube_8: "`Scarica la canzone video ...`"
-help_button: "-\n\n• `{i} pulsante <testo con formato pulsante`\n   Crea pulsante che puoi rispondere anche a foto\n\nFormato:- `{i} pulsante he ehi!@Useultroid 😎.\n[Ultroid |T.me/theultroid onlinesupport |T.me/ultroidsupportChat |stesso]\n[Teamultroid |T.me/teamultroid] `"
+help_button: "-\n\n• `{i} pulsante <testo con formato pulsante`\n   Crea pulsante che puoi rispondere anche a foto\n\nFormato:- `{i} pulsante he ehi!@Useultroid 😎.\n[BoudyOS |T.me/theultroid onlinesupport |https://github.com/boudywho/BoudyOS/issues |stesso]\n[Teamultroid |T.me/teamultroid] `"
 bot_1: "Ehi, sono vivo."
 youtube_7: "Dammi una query di ricerca (YouTube) per scaricare video da!"
 com_5: "Download ..."
 schdl_1: "`Messaggio programmato correttamente`"
-help_7: "Plugin in linea ••"
+help_7: "Plugin in linea"
 help_globaltools: "-\n\n• `{i} gban <risposta utente/ nome utente>`\n• `{i} ungban`\n    Ban/Unblan a livello globale.\n\n• `{i} GStat <Risposta all'utente/userid/nome utente>`\n   Controlla se l'utente è GBANNED.\n\n• `{i} ListGBan`: Elenca tutti gli utenti GBanned.\n\n• `{i} gmute` | `{i} Ungmute` <Rispondi Utente/ Nome utente>\n    MUTE/MUTE MUTI A livello globale.\n\n• `{i} gkick <risposta/nome utente>` `kick utente a livello globale`\n• `{i} gcast <text/rispondi>` `Invia a livello globale MSG in tutti i GRPS`\n\n• `{i} gadmincast <text/rispondi>` `trasmissione a livello globale nelle tue chat di amministrazione`\n• `{i} Gucast <testo/risposta>` `Invia a livello globale MSG in tutti gli utenti PM`\n\n• `{i} gblacklist <chat id/nome utente/niente (per la chat corrente)`\n   Aggiungi chat a Blacklist e ignora la trasmissione globale.\n• `{i} ungblacklist`` Rimuovi la chat da Blacklist.\n\n• `{i} gpromote <risposta all'utente> <canale/gruppo/all> <nank>`\n    Promuovi a livello globale l'utente in cui sei amministratore\n    - Impostare se promuovere solo gruppi/canali/tutti.\n    Eg- `Gpromote Group Boss` ~ Promuove l'utente in tutti i GRP.\n        `gpromote @Username All Sar` ~ Promuovi l'utente in All Group & Channel\n• `{i} gdemote` -` DEMOTE USER GLOBALE`"
 help_words: "-\n\n• `{i} Significato <Word>`\n    Ottieni il significato della parola.\n\n• `{i} sinonimo <word>`\n    Ottieni tutti i sinonimi.\n\n• `{i} Antony <Word>`\n    Ottieni tutti gli antonimi.\n\n• `{i} ud <Word>`\n    Fetch Word Defenition da Urbandictionary."
 srch_2: "`Nessun utente del genere trovato ...`"
@@ -302,7 +302,7 @@ ban_5: "** Motivo **: `{}`"
 kick_1: "`Non ho il diritto di calciare un utente."
 pmbot_6: "L'utente non è mai stato vietato!"
 help_vctools: "-\n\n• `{i} startvc`\n    Inizia la chiamata del gruppo in un gruppo.\n\n• `{i} stopvc`\n    Fermare il gruppo di gruppo in un gruppo.\n\n• `{i} vctitle <title>`\n    Cambia la chiamata del gruppo del titolo.\n\n• `{i} VCinvite`\n    Invita tutti i membri del gruppo in gruppo di gruppo.\n    (Devi essere unito)"
-help_5: "Componenti aggiuntivi •"
+help_5: "Componenti aggiuntivi"
 vct_4: "`La chat vocale si è fermata ...`"
 pro_2: "{} `è ora un amministratore in {} con il titolo {} .`"
 vct_6: "Nessun input trovato!"
@@ -324,7 +324,7 @@ asstcmd_6: "** Tutti gli assistenti cmds **"
 spcltool_4: "`Prima risposta un audio con .raw`"
 pmbot_4: "`Arrivederci!Sei stato bandito.\n** Ulteriori messaggi che invii non verranno inoltrati. **"
 vcbot_18: "• L'elenco delle autorità VC è vuota .."
-help_4: "• Plugin"
+help_4: "Plugin"
 cha_3: "Canale sorgente già aggiunto"
 de_2: "{} `non è più un amministratore in {}`"
 wrd_8: "Nessun contrario trovato !!\n\n`{}`"
@@ -344,7 +344,7 @@ audiotools_2: "Scaricato correttamente, ora convertiti in voce"
 help_greetings: "-\n\n---- accoglie ----\n• `{i} setwelcome <messaggio/risposta al messaggio>`\n    Imposta il messaggio di benvenuto nella chat corrente.\n\n• `{i} clearWelcome`\n    Elimina l'accoglienza nella chat corrente.\n\n• `{i} getwelcome`\n    Ottieni il messaggio di benvenuto nella chat corrente.\n\n---- Arrivederci ----\n• `{i} setGoodBye <Messaggio/Rispondi al messaggio>`\n    Imposta il messaggio di addio nella chat corrente.\n\n• `{i} clearGoodBye`\n    Elimina l'addio nella chat corrente.\n\n• `{i} getGoodBye`\n    Ottieni il messaggio di addio nella chat corrente.\n\n• `{i} Grazie a/off`\n    Invia un adesivo di ringraziamento per colpire un numero di membri di 100*X nei tuoi gruppi."
 unban_1: "`Rispondi a un utente o dai nome utente per unkinglo!`"
 ban_1: "`Rispondi a un utente o fai nome utente per vietarlo!`"
-help_6: "••Chat vocale"
+help_6: "Chat vocale"
 vcbot_13: "`Ha ripreso la riproduzione in questa chat."
 com_4: "`Media non supportati..`"
 youtube_5: "Dammi una query di ricerca (YouTube) per scaricare audio da!"
@@ -436,7 +436,7 @@ grt_4: "`Nessun benvenuto è stato impostato!`"
 help_videotools: "-\n\n• `{i} campione <durata in secondi>`\n   Crea un breve campione di video ..\n\n• `{i} vshots <Numero di colpi>`\n   Crea screenshot del video ..\n\n• `{i} vtrim <inizio tempo> - <ora di fine> in secondi`\n    Ritagliare un lungo video .."
 pinned_1: "Nessun messaggio appuntato trovato!"
 blk_2: "Fatto: `{}` blacklist qui."
-help_10: "•• Cʟᴏꜱᴇ ••"
+help_10: "Close"
 vcbot_9: "Ma stai scherzando?\nCosa suonare?"
 help_unsplash: "-\n\n• {i} Unsplash <Search query>;<no di foto>\n    Ricerca dell'immagine di Unplash."
 carbon_3: "`Dai un colore personalizzato per creare carbonio ...`"

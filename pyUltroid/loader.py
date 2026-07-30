@@ -62,7 +62,14 @@ class Loader:
                 modl = func(plugin)
             except ModuleNotFoundError as er:
                 modl = None
-                self._logger.error(f"{plugin}: '{er.name}' not installed!")
+                if plugin == "assistant.games" and (
+                    er.name == "akipy" or (er.name or "").startswith("akipy.")
+                ):
+                    self._logger.warning(
+                        "Optional games plugin skipped: install 'akipy' to enable it."
+                    )
+                else:
+                    self._logger.error(f"{plugin}: '{er.name}' not installed!")
                 continue
             except Exception as exc:
                 modl = None

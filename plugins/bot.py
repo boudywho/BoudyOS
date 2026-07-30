@@ -70,21 +70,23 @@ def ULTPIC():
 
 buttons = [
     [
-        Button.url(get_string("bot_3"), "https://github.com/TeamUltroid/Ultroid"),
-        Button.url(get_string("bot_4"), "t.me/UltroidSupportChat"),
+        Button.url(get_string("bot_3"), "https://github.com/boudywho/BoudyOS"),
+        Button.url(
+            get_string("bot_4"), "https://github.com/boudywho/BoudyOS/issues"
+        ),
     ]
 ]
 
 # Will move to strings
 alive_txt = """
-The Ultroid Userbot
+BoudyOS
 
   ◍ Version - {}
   ◍ Py-Ultroid - {}
   ◍ Telethon - {}
 """
 
-in_alive = "{}\n\n🌀 <b>Ultroid Version -><b> <code>{}</code>\n🌀 <b>PyUltroid -></b> <code>{}</code>\n🌀 <b>Python -></b> <code>{}</code>\n🌀 <b>Uptime -></b> <code>{}</code>\n🌀 <b>Branch -></b>[ {} ]\n\n• <b>Join @TeamUltroid</b>"
+in_alive = "{}\n\n🌀 <b>BoudyOS version:</b> <code>{}</code>\n🌀 <b>pyUltroid:</b> <code>{}</code>\n🌀 <b>Python:</b> <code>{}</code>\n🌀 <b>Uptime:</b> <code>{}</code>\n🌀 <b>Branch:</b> [ {} ]\n\n<b>github.com/boudywho/BoudyOS</b>"
 
 
 @callback("alive")
@@ -247,7 +249,7 @@ async def _(event):
         if isinstance(file, dict):
             await event.eor(f"`{file}`")
             return
-        await event.reply("**Ultroid Logs.**", file=file)
+        await event.reply("**BoudyOS logs**", file=file)
     elif opt == "open":
         with open("ultroid.log", "r") as f:
             file = f.read()[-4000:]

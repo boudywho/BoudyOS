@@ -307,7 +307,7 @@ async def _(event):
         if not sticks:
             return await uu.edit(get_string("spcltool_9"))
 
-        a = "SᴛɪᴄᴋEʀs Aᴠᴀɪʟᴀʙʟᴇ ~\n\n"
+        a = "StickErs Available ~\n\n"
         for href, title in sticks.items():
             a += f"<a href={href}>{title}</a>\n"
         await uu.edit(a, parse_mode="html")
@@ -385,7 +385,7 @@ async def quott_(event):
         )
     except Exception as er:
         return await msg.edit(str(er))
-    message = await reply.reply("Quotly by Ultroid", file=file)
+    message = await reply.reply("Created with BoudyOS", file=file)
     os.remove(file)
     await msg.delete()
     return message
