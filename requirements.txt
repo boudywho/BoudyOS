@@ -4,6 +4,7 @@ gitpython>=3.1.52
 https://github.com/New-dev0/Telethon-Patch/archive/main.zip
 python-decouple>=3.8
 python-dotenv>=1.2.2
+PyYAML>=6.0.2
 telegraph>=2.2.0
 enhancer>=0.3.4
 requests>=2.34.2
