@@ -69,7 +69,7 @@ def main():
 
     suc_msg = """
             ----------------------------------------------------------------------
-                Ultroid has been deployed! Visit @TheUltroid for updates!!
+                BoudyOS is ready: https://github.com/boudywho/BoudyOS
             ----------------------------------------------------------------------
     """
 
@@ -96,7 +96,7 @@ def main():
         pass
 
     LOGS.info(
-        f"Took {time_formatter((time.time() - start_time)*1000)} to start •ULTROID•"
+        f"BoudyOS started in {time_formatter((time.time() - start_time)*1000)}"
     )
     LOGS.info(suc_msg)
 

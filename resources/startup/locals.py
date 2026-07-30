@@ -26,12 +26,12 @@ def start():
     check_for_py()
 
     print(f"{a}\n\n")
-    print("Welcome to Ultroid, lets start setting up!\n\n")
+    print("Welcome to BoudyOS. Let's get your workspace ready.\n")
     print("Cloning the repository...\n\n")
-    os.system("rm -rf Ultroid")
-    os.system("git clone https://github.com/TeamUltroid/Ultroid")
+    os.system("rm -rf BoudyOS")
+    os.system("git clone https://github.com/boudywho/BoudyOS")
     print("\n\nDone")
-    os.chdir("Ultroid")
+    os.chdir("BoudyOS")
     clear_screen()
     print(a)
     print("\n\nLet's start!\n")
@@ -57,7 +57,7 @@ def start():
         "REDIS_URI",
         "REDIS_PASSWORD",
     ]
-    all_done = "# Ultroid Environment Variables.\n# Do not delete this file.\n\n"
+    all_done = "# BoudyOS environment variables.\n# Do not delete this file.\n\n"
     for i in varrs:
         all_done += do_input(i)
     clear_screen()
@@ -89,7 +89,7 @@ def start():
         print("Skipped!")
     clear_screen()
     print(a)
-    print("\nStarting Ultroid...")
+    print("\nStarting BoudyOS...")
     os.system("sh startup")
 
 

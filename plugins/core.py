@@ -36,7 +36,7 @@ async def unload(event):
     if zym in lsd:
         try:
             un_plug(shortname)
-            await event.eor(f"**Uɴʟᴏᴀᴅᴇᴅ** `{shortname}` **Sᴜᴄᴄᴇssғᴜʟʟʏ.**", time=3)
+            await event.eor(f"**Unloaded** `{shortname}` **Successfully.**", time=3)
         except Exception as ex:
             LOGS.exception(ex)
             return await event.eor(str(ex))

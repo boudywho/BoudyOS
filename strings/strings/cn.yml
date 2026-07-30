@@ -20,17 +20,17 @@ autopic_2: "找不到的结果 `{}`"
 autopic_3: "有收藏吗 `{}` 与您的搜索相关 !\n开始自选 !"
 
 # inline
-inline_1: "[Ultroid 帮助](t.me/UltroidSupportChat)\n\n
+inline_1: "[BoudyOS 帮助](https://github.com/boudywho/BoudyOS/issues)\n\n
 **帮助菜单 {}.\n\n
 插件 ~ {}**"
-inline_2: "[Ultroid 帮助](t.me/UltroidSupportChat)\n\n
+inline_2: "[BoudyOS 帮助](https://github.com/boudywho/BoudyOS/issues)\n\n
 **帮助菜单 {}.\n\n
 附加组件 ~ {}**"
-inline_3: "[Ultroid 帮助](t.me/UltroidSupportChat)\n\n
+inline_3: "[BoudyOS 帮助](https://github.com/boudywho/BoudyOS/issues)\n\n
 **帮助菜单 {}.\n\n
 附加组件 ~ {}\n\n
 去添加 `附加组件` var为true的值**"
-inline_4: "**{}的机器人\n\n主菜单\n\n插件 ~ {}\n附加组件 ~ {}\n命令总数 ~ {}**"
+inline_4: "**BoudyOS**\n**{}** 的个人 Telegram 工作空间\n\n**概览**\n• 插件：{}\n• 附加组件：{}\n• 命令：{}\n\n请在下方选择一个类别。"
 inline_5: "**菜单已关闭**"
 
 # tagnotif
@@ -50,7 +50,7 @@ afk_5: "`去 AFK.`\n\n**原因:** `{}`"
 afk_6: "我要去 AFK."
 
 # bot
-alive_1: "**Ultroid 用户机器人...**\n\n
+alive_1: "**BoudyOS 用户机器人...**\n\n
 **{}**\n\n
 ┏━━━━━━━━━━━━━━━━━━━━━\n
 ┣ **所有者** - `{}`\n
@@ -61,7 +61,7 @@ alive_1: "**Ultroid 用户机器人...**\n\n
 ┣ **Telethon** - `{}`\n
 ┣ **分支** - `{}`\n
 ┗━━━━━━━━━━━━━━━━━━━━━"
-log: "**Heroku** Ultroid 日志.\n粘贴 [here]({}) too!"
+log: "**Heroku** BoudyOS 日志.\n粘贴 [here]({}) too!"
 ping: "**Pong !!** `{}毫秒`\n**Uptime** - `{}`"
 usage: "**⚙️ Dyno 用法 ⚙️**:\n\n
  -> `Dyno 用法 for`  **{}**:\n
@@ -151,7 +151,7 @@ gdrive_2: "去 [这里](https://console.developers.google.com/flows/enableapi?ap
 发送你的 GDRIVE_CLIENT_ID 和 GDRIVE_CLIENT_SECRET 到这里.\n`GDRIVE_CLIENT_ID GDRIVE_CLIENT_SECRET` 用空格分开."
 gdrive_3: "`错误的 Client Id`"
 gdrive_4: "`发生了一些错误! 再次发送 `/auth`.\n如果发生同样的问题请联系 `@TeamUltroid"
-gdrive_5: "`成功!\n你已经在 Ultroid 用户机器人 上设置好了 Google Drive.`"
+gdrive_5: "`成功!\n你已经在 BoudyOS 用户机器人 上设置好了 Google Drive.`"
 gdrive_6: "`去 `{}` 并发送 ``/auth.`"
 gdrive_7: "**文件成功上传到 G-Drive :**\n\n[{}]({})"
 
@@ -227,10 +227,10 @@ wrd_4: "`Give a Word to Find Its Meaning..`"
 help_blacklist: "-\n\n• `{i}blacklist <word/all words with a space>`\n    blacklist the choosen word in that chat.\n\n• `{i}remblacklist <word>`\n    Remove the word from blacklist..\n\n• `{i}listblacklist`\n    list all blacklisted words.\n\n  'if a person uses blacklist Word his/her msg will be deleted'\n  'And u Must be Admin in that Chat'"
 vct_1: "`Voice Chat Started...`"
 vcbot_5: "`Re-joining this voice chat.`"
-calc_1: "• Ultroid Inline Calculator •"
+calc_1: "• BoudyOS Inline Calculator •"
 autopic_4: "AUTOPIC was not in use !!"
 ascii_2: "`Converting to html...`"
-help_bot: "• `{i}alive` | `{i}alive inline`\n    Check if your bot is working.\n\n• `{i}ping`\n    Check Ultroid's response time.\n\n• `{i}update`\n    See changelogs if any update is available.\n\n• `{i}cmds`\n    View all plugin names.\n\n• `{i}restart`\n    To restart your bot.\n\n• `{i}logs (sys)`\n    Get the full terminal logs.\n• `{i}logs carbon`\n    Get the carbonized sys logs.\n• `{i}logs heroku`\n   Get the latest 100 lines of heroku logs.\n\n• `{i}shutdown`\n    Turn off your bot."
+help_bot: "• `{i}alive` | `{i}alive inline`\n    Check if your bot is working.\n\n• `{i}ping`\n    Check BoudyOS's response time.\n\n• `{i}update`\n    See changelogs if any update is available.\n\n• `{i}cmds`\n    View all plugin names.\n\n• `{i}restart`\n    To restart your bot.\n\n• `{i}logs (sys)`\n    Get the full terminal logs.\n• `{i}logs carbon`\n    Get the carbonized sys logs.\n• `{i}logs heroku`\n   Get the latest 100 lines of heroku logs.\n\n• `{i}shutdown`\n    Turn off your bot."
 ascii_1: "`Reply to image.`"
 sts_2: "`Reply to an Animated Sticker...`"
 ban_4: "{} **was banned by** {} **in** `{}`"
@@ -263,12 +263,12 @@ help_autoban: "• `{i}autokick <on/off>`\n    on - To enable.\n    off - To dis
 can_2: "∆ #UsernameUpdate\n\n@{} changed username to @{}"
 aki_1: "Game has been Terminated...."
 youtube_8: "`Downloading video song...`"
-help_button: "-\n\n• `{i}button <text with button format`\n   create button u can reply to pic also\n\nFormat:- `{i}button Hey There! @UseUltroid 😎.\n[Ultroid | t.me/theUltroid][Support | t.me/UltroidSupportChat | same]\n[TeamUltroid | t.me/TeamUltroid]`"
+help_button: "-\n\n• `{i}button <text with button format`\n   create button u can reply to pic also\n\nFormat:- `{i}button Hey There! @UseUltroid 😎.\n[BoudyOS | t.me/theUltroid][Support | https://github.com/boudywho/BoudyOS/issues | same]\n[TeamUltroid | t.me/TeamUltroid]`"
 bot_1: "Hey,  I am alive."
 youtube_7: "Give me a (youtube) search query to download video from!"
 com_5: "Downloading..."
 schdl_1: "`Scheduled message Successfully`"
-help_7: "Inline Plugins••"
+help_7: "Inline Plugins"
 help_globaltools: "-\n\n• `{i}gban <reply user/ username>`\n• `{i}ungban`\n    Ban/Unban Globally.\n\n• `{i}gstat <reply to user/userid/username>`\n   Check if user is GBanned.\n\n• `{i}listgban` : List all GBanned users.\n\n• `{i}gmute` | `{i}ungmute` <reply user/ username>\n    Mute/UnMute Globally.\n\n• `{i}gkick <reply/username>` `Globally Kick User`\n• `{i}gcast <text/reply>` `Globally Send msg in all grps`\n\n• `{i}gadmincast <text/reply>` `Globally broadcast in your admin chats`\n• `{i}gucast <text/reply>` `Globally send msg in all pm users`\n\n• `{i}gblacklist <chat id/username/nothing (for current chat)`\n   Add chat to blacklist and ignores global broadcast.\n• `{i}ungblacklist` `Remove the chat from blacklist.`\n\n• `{i}gpromote <reply to user> <channel/group/all> <rank>`\n    globally promote user where you are admin\n    - Set whether To promote only in groups/channels/all.\n    Eg- `gpromote group boss` ~ promotes user in all grps.\n        `gpromote @username all sar` ~ promote the user in all group & channel\n• `{i}gdemote` - `demote user globally`"
 help_words: "-\n\n• `{i}meaning <word>`\n    Get the meaning of the word.\n\n• `{i}synonym <word>`\n    Get all synonyms.\n\n• `{i}antonym <word>`\n    Get all antonyms.\n\n• `{i}ud <word>`\n    Fetch word defenition from urbandictionary."
 srch_2: "`No such user found...`"
@@ -297,7 +297,7 @@ ban_5: "**Reason**: `{}`"
 kick_1: "`I don't have the right to kick a user.`"
 pmbot_6: "User was never banned!"
 help_vctools: "-\n\n• `{i}startvc`\n    Start Group Call in a group.\n\n• `{i}stopvc`\n    Stop Group Call in a group.\n\n• `{i}vctitle <title>`\n    Change the title Group call.\n\n• `{i}vcinvite`\n    Invite all members of group in Group Call.\n    (You must be joined)"
-help_5: "Addons •"
+help_5: "Addons"
 vct_4: "`Voice Chat Stopped...`"
 pro_2: "{} `is now an admin in {} with title {}.`"
 vct_6: "No input Found!"
@@ -326,7 +326,7 @@ asstcmd_4: "Done Command : `/{}` saved."
 mdi_1: "More Explained Info"
 schdl_2: "`Incorrect Format`"
 help_calculator: "-\n\n•`{i}calc` - Inline Calculator"
-help_6: "••Voice Chat"
+help_6: "Voice Chat"
 vct_3: "`Inviting Members to Voice Chat...`"
 pmbot_1: "**You need to join below chat(s) in order to chat with my master!\n\n**"
 grt_4: "`No welcome was set!`"
@@ -369,7 +369,7 @@ antiflood_3: "`You have been muted.`"
 echo_1: "**Activated Echo For Users:**"
 help_database: "-\n\n• **DataBase Commands, do not use if you don't know what it is.**\n\n• `{i}setdb key | value`\n    Set Value in Database.\n    e.g :\n    `{i}setdb hi there`\n    `{i}setdb hi there | ultroid here`\n    `{i}setdb --extend variable value` or `{i}setdb -e variable value` to add the value to the exiting values in db.\n\n• `{i}deldb key`\n    Delete Key from DB.\n\n• `{i}rendb old keyname | new keyname`\n    Update Key Name"
 help_admintools: "-\n\n• `.promote <reply to user/userid/username>`\n• `.demote`\n    Promote/Demote the user in the chat.\n\n• `.ban <reply to user/userid/username> <reason>`\n• `.unban`\n    Ban/Unban the user from the chat.\n\n• `.kick <reply to user/userid/username> <reason>`\n    Kick the user from the chat.\n\n• `.pin <reply to message>`\n    Pin the message in the chat\n• `.tpin <time> <temp pin message>`\n• `.unpin (all) <reply to message>`\n    Unpin the messages in the chat.\n\n• `.pinned`\n   Get pinned message in the current chat.\n• `.listpinned`\n   Get all pinned messages in current chat\n\n• `.autodelete <24h/7d/1m/off>`\n   Enable Auto Delete Messages in Chat.\n\n• `.purge <reply to message>`\n    Purge all messages from the replied message.\n\n• `.purgeme <reply to message>`\n    Purge Only your messages from the replied message.\n\n• `.purgeall`\n    Delete all msgs of replied user."
-help_4: "• Plugins"
+help_4: "Plugins"
 vcbot_3: "• Volume Changed to `{}%` •"
 pmbot_3: "User is already banned!"
 blk_5: "Blacklist Found In This Chats Are :"
@@ -448,7 +448,7 @@ help_fakeaction: "-\n\n• `{i}ftyping <time/in secs>`\n    `Show Fake Typing in
 help_9: "Settings ⚙️"
 help_converter: "-\n\n• `{i}convert <gif/img/sticker/webm>`\n    Reply to media to convert it into gif / image / webm / normal sticker.\n\n• `{i}doc <filename.ext>`\n    Reply to a text msg to save it in a file.\n\n• `{i}open`\n    Reply to a file to reveal it's text.\n\n• `{i}rename <file name with extension>`\n    Rename the file\n\n• `{i}thumbnail <reply to image/thumbnail file>`\n    Upload Your file with your custom thumbnail."
 vcbot_21: "• Nothing in queue!"
-help_10: "••Cʟᴏꜱᴇ••"
+help_10: "Close"
 prof_1: "`Added This Chat for Profanity Filtering!`"
 vcbot_6: "You haven't connected to a voice chat!"
 dm_6: "`No message found to deliver :(`"

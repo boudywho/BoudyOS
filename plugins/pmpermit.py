@@ -805,7 +805,7 @@ async def in_pm_ans(event):
                 content=cont,
             )
         ]
-    await event.answer(res, switch_pm="• Ultroid •", switch_pm_param="start")
+    await event.answer(res, switch_pm="BoudyOS", switch_pm_param="start")
 
 
 @callback(re.compile("admin_only(.*)"), from_users=[ultroid_bot.uid])
@@ -817,7 +817,7 @@ async def _admin_tools(event):
                 Button.inline("Approve PM", data=f"approve_{chat}"),
                 Button.inline("Block PM", data=f"block_{chat}"),
             ],
-            [Button.inline("« Back", data=f"pmbk_{chat}")],
+            [Button.inline("Back", data=f"pmbk_{chat}")],
         ],
     )
 

@@ -32,7 +32,8 @@ if Owner_info_msg is None:
 
 **Message Forwards** - {udB.get_key("PMBOT")}
 
-**Ultroid [v{ultroid_version}](https://github.com/TeamUltroid/Ultroid), powered by @TeamUltroid**
+**[BoudyOS v{ultroid_version}](https://github.com/boudywho/BoudyOS)**
+Personalized from [TeamUltroid/Ultroid](https://github.com/TeamUltroid/Ultroid).
 """
 
 
@@ -47,9 +48,9 @@ _settings = [
     ],
     [
         Button.inline("Features", data="cbs_otvars"),
-        Button.inline("VC Song Bot", data="cbs_vcb"),
+        Button.inline("Voice Chat", data="cbs_vcb"),
     ],
-    [Button.inline("« Back", data="mainmenu")],
+    [Button.inline("Back", data="mainmenu")],
 ]
 
 _start = [
@@ -58,10 +59,10 @@ _start = [
         Button.inline("Settings ⚙️", data="setter"),
     ],
     [
-        Button.inline("Sᴛᴀᴛs ✨", data="stat"),
-        Button.inline("Bʀᴏᴀᴅᴄᴀsᴛ 📻", data="bcast"),
+        Button.inline("Stats", data="stat"),
+        Button.inline("Broadcast", data="bcast"),
     ],
-    [Button.inline("TɪᴍᴇZᴏɴᴇ 🌎", data="tz")],
+    [Button.inline("Time zone", data="tz")],
 ]
 
 
@@ -71,7 +72,7 @@ async def own(event):
         mention=event.sender.mention, me=inline_mention(ultroid_bot.me)
     )
     if custom_info:
-        msg += "\n\n• Powered by **@TeamUltroid**"
+        msg += "\n\nPowered by **BoudyOS**."
     await event.edit(
         msg,
         buttons=[Button.inline("Close", data="closeit")],
@@ -114,11 +115,11 @@ async def ultroid(event):
             await get_stored_file(event, args)
         if not udB.get_key("STARTMSG"):
             if udB.get_key("PMBOT"):
-                ok = "You can contact my master using this bot!!\n\nSend your Message, I will Deliver it To Master."
+                ok = "You can contact the owner through this bot. Send a message and I will deliver it."
             await event.reply(
-                f"Hey there {mention}, this is Ultroid Assistant of {me}!\n\n{ok}",
+                f"Hello {mention}. This is the BoudyOS assistant for {me}.\n\n{ok}",
                 file=udB.get_key("STARTMEDIA"),
-                buttons=[Button.inline("Info.", data="ownerinfo")]
+                buttons=[Button.inline("Info", data="ownerinfo")]
                 if Owner_info_msg
                 else None,
             )
@@ -126,7 +127,7 @@ async def ultroid(event):
             await event.reply(
                 udB.get_key("STARTMSG").format(me=me, mention=mention),
                 file=udB.get_key("STARTMEDIA"),
-                buttons=[Button.inline("Info.", data="ownerinfo")]
+                buttons=[Button.inline("Info", data="ownerinfo")]
                 if Owner_info_msg
                 else None,
             )
@@ -134,7 +135,7 @@ async def ultroid(event):
         name = get_display_name(event.sender)
         if args == "set":
             await event.reply(
-                "Choose from the below options -",
+                "Choose a setting below.",
                 buttons=_settings,
             )
         elif args:
@@ -163,8 +164,8 @@ async def ultroid(event):
 @callback("stat", owner=True)
 async def botstat(event):
     ok = len(udB.get_key("BOT_USERS") or [])
-    msg = """Ultroid Assistant - Stats
-Total Users - {}""".format(
+    msg = """BoudyOS assistant
+Total users: {}""".format(
         ok,
     )
     await event.answer(msg, cache_time=0, alert=True)
@@ -181,7 +182,7 @@ async def bdcast(event):
         )
         response = await conv.get_response()
         if response.message == "/cancel":
-            return await conv.send_message("Cancelled!!")
+            return await conv.send_message("Broadcast cancelled.")
         success = 0
         fail = 0
         await conv.send_message(f"Starting a broadcast to {total} users...")
@@ -197,16 +198,16 @@ async def bdcast(event):
         await conv.send_message(
             f"""
 **Broadcast completed in {time_taken} seconds.**
-Total Users in Bot - {total}
-**Sent to** : `{success} users.`
-**Failed for** : `{fail} user(s).`""",
+Total users: {total}
+**Delivered:** `{success}`
+**Failed:** `{fail}`""",
         )
 
 
 @callback("setter", owner=True)
 async def setting(event):
     await event.edit(
-        "Choose from the below options -",
+        "Choose a setting below.",
         buttons=_settings,
     )
 

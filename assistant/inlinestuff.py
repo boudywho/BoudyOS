@@ -32,14 +32,17 @@ from . import _ult_cache
 
 SUP_BUTTONS = [
     [
-        Button.url("• Repo •", url="https://github.com/TeamUltroid/Ultroid"),
-        Button.url("• Support •", url="t.me/UltroidSupportChat"),
+        Button.url("Source", url="https://github.com/boudywho/BoudyOS"),
+        Button.url("Support", url="https://github.com/boudywho/BoudyOS/issues"),
     ],
 ]
 
 ofox = "https://graph.org/file/231f0049fcd722824f13b.jpg"
 gugirl = "https://graph.org/file/0df54ae4541abca96aa11.jpg"
-ultpic = "https://graph.org/file/4136aa1650bc9d4109cc5.jpg"
+ultpic = (
+    "https://raw.githubusercontent.com/boudywho/BoudyOS/main/"
+    "resources/extras/boudyos_avatar.jpg"
+)
 
 apis = [
     "QUl6YVN5QXlEQnNZM1dSdEI1WVBDNmFCX3c4SkF5NlpkWE5jNkZV",
@@ -56,8 +59,8 @@ async def _(e):
         kkkk = e.builder.article(
             title="Enter Device Codename",
             thumb=wb(ofox, 0, "image/jpeg", []),
-            text="**OFᴏx🦊Rᴇᴄᴏᴠᴇʀʏ**\n\nYou didn't search anything",
-            buttons=Button.switch_inline("Sᴇᴀʀᴄʜ Aɢᴀɪɴ", query="ofox ", same_peer=True),
+            text="**OFox🦊Recovery**\n\nYou didn't search anything",
+            buttons=Button.switch_inline("Search Again", query="ofox ", same_peer=True),
         )
         return await e.answer([kkkk])
     device, releases = await get_ofox(match)
@@ -89,9 +92,9 @@ async def _(e):
                     thumb=wb(ofox, 0, "image/jpeg", []),
                     link_preview=True,
                     buttons=[
-                        Button.url("Dᴏᴡɴʟᴏᴀᴅ", url=f"{link}"),
+                        Button.url("Download", url=f"{link}"),
                         Button.switch_inline(
-                            "Sᴇᴀʀᴄʜ Aɢᴀɪɴ", query="ofox ", same_peer=True
+                            "Search Again", query="ofox ", same_peer=True
                         ),
                     ],
                 )
@@ -169,14 +172,14 @@ async def _(e):
 async def repo(e):
     res = [
         await e.builder.article(
-            title="Ultroid Userbot",
-            description="Userbot | Telethon",
+            title="BoudyOS",
+            description="Personal Telegram workspace",
             thumb=wb(ultpic, 0, "image/jpeg", []),
-            text="• **ULTROID USERBOT** •",
+            text="**BoudyOS**",
             buttons=SUP_BUTTONS,
         ),
     ]
-    await e.answer(res, switch_pm="Ultroid Repo.", switch_pm_param="start")
+    await e.answer(res, switch_pm="BoudyOS source", switch_pm_param="start")
 
 
 @in_pattern("go", owner=True)
@@ -241,8 +244,8 @@ async def _(e):
         title = a.get("title")
         desc = a.get("snippet")
         link = a.get("link")
-        text = f"**••Tɪᴛʟᴇ••** `{title}`\n\n"
-        text += f"**Dᴇsᴄʀɪᴘᴛɪᴏɴ** `{desc}`"
+        text = f"**••Title••** `{title}`\n\n"
+        text += f"**Description** `{desc}`"
         modss.append(
             await e.builder.article(
                 title=title,
@@ -250,15 +253,15 @@ async def _(e):
                 text=text,
                 link_preview=True,
                 buttons=[
-                    [Button.url("Dᴏᴡɴʟᴏᴀᴅ", url=f"{link}")],
+                    [Button.url("Download", url=f"{link}")],
                     [
                         Button.switch_inline(
-                            "Mᴏʀᴇ Mᴏᴅs",
+                            "More Mods",
                             query="mods ",
                             same_peer=True,
                         ),
                         Button.switch_inline(
-                            "Sʜᴀʀᴇ",
+                            "Share",
                             query=f"mods {quer}",
                             same_peer=False,
                         ),
@@ -321,7 +324,7 @@ async def _(e):
                             same_peer=True,
                         ),
                         Button.switch_inline(
-                            "Sʜᴀʀᴇ",
+                            "Share",
                             query=f"app {f}",
                             same_peer=False,
                         ),
@@ -608,16 +611,16 @@ async def inline_tl(ult):
 
 InlinePlugin.update(
     {
-        "Pʟᴀʏ Sᴛᴏʀᴇ Aᴘᴘs": "app telegram",
-        "Mᴏᴅᴅᴇᴅ Aᴘᴘs": "mods minecraft",
-        "Sᴇᴀʀᴄʜ Oɴ Gᴏᴏɢʟᴇ": "go TeamUltroid",
-        "WʜɪSᴘᴇʀ": "wspr @username Hello🎉",
-        "YᴏᴜTᴜʙᴇ Dᴏᴡɴʟᴏᴀᴅᴇʀ": "yt Ed Sheeran Perfect",
+        "Play Store Apps": "app telegram",
+        "Modded Apps": "mods minecraft",
+        "Search On Google": "go TeamUltroid",
+        "WhiSper": "wspr @username Hello🎉",
+        "YouTube Downloader": "yt Ed Sheeran Perfect",
         "Piston Eval": "run javascript console.log('Hello Ultroid')",
-        "OʀᴀɴɢᴇFᴏx🦊": "ofox beryllium",
-        "Tᴡɪᴛᴛᴇʀ Usᴇʀ": "twitter theultroid",
-        "Fᴅʀᴏɪᴅ Sᴇᴀʀᴄʜ": "fdroid telegram",
-        "Sᴀᴀᴠɴ sᴇᴀʀᴄʜ": "saavn",
-        "Tʟ Sᴇᴀʀᴄʜ": "tl",
+        "OrangeFox🦊": "ofox beryllium",
+        "Twitter User": "twitter theultroid",
+        "Fdroid Search": "fdroid telegram",
+        "Saavn search": "saavn",
+        "Tl Search": "tl",
     }
 )

@@ -1,6 +1,7 @@
 services:
-  worker:
+  boudyos:
     build: .
+    image: boudyos:local
     environment:
       REDIS_URI: $REDIS_URI
       REDIS_PASSWORD: $REDIS_PASSWORD

@@ -19,18 +19,18 @@ autopic_2: "`{}` යන්නට කිසිවක් හමු නොවීය
 autopic_3: "`{}` යන ඔබ සෙවූ දෙයට අදාලව  collection එකක්ම හමු විය !\nAutopic ආරම්භ කරමින් !"
 
 # inline
-inline_1: "[Uʟᴛʀᴏɪᴅ Sᴜᴘᴘᴏʀᴛ](t.me/UltroidSupportChat)\n\n
-**Hᴇʟᴘ Mᴇɴᴜ Oғ {}.\n\n
-Pʟᴜɢɪɴs ~ {}**"
-inline_2: "[Uʟᴛʀᴏɪᴅ Sᴜᴘᴘᴏʀᴛ](t.me/UltroidSupportChat)\n\n
-**Hᴇʟᴘ Mᴇɴᴜ Oғ {}.\n\n
-Aᴅᴅᴏɴs ~ {}**"
-inline_3: "[Uʟᴛʀᴏɪᴅ Sᴜᴘᴘᴏʀᴛ](t.me/UltroidSupportChat)\n\n
-**Hᴇʟᴘ Mᴇɴᴜ Oғ {}.\n\n
-Aᴅᴅᴏɴs ~ {}\n\n
-Gᴏ Aɴᴅ Aᴅᴅ `ADDONS` Vᴀʀ Wɪᴛʜ Vᴀʟᴜᴇ Tʀᴜᴇ**"
-inline_4: "** Bᴏᴛ Oғ {}\n\nMᴀɪɴ Mᴇɴᴜ\n\nPʟᴜɢɪɴs ~ {}\nAᴅᴅᴏɴs ~ {}\nTᴏᴛᴀʟ Cᴏᴍᴍᴀɴᴅs ~ {}**"
-inline_5: "**Mᴇɴᴜ Hᴀs Bᴇᴇɴ Cʟᴏsᴇᴅ**"
+inline_1: "[BoudyOS Support](https://github.com/boudywho/BoudyOS/issues)\n\n
+**Help Menu Of {}.\n\n
+Plugins ~ {}**"
+inline_2: "[BoudyOS Support](https://github.com/boudywho/BoudyOS/issues)\n\n
+**Help Menu Of {}.\n\n
+Addons ~ {}**"
+inline_3: "[BoudyOS Support](https://github.com/boudywho/BoudyOS/issues)\n\n
+**Help Menu Of {}.\n\n
+Addons ~ {}\n\n
+Go And Add `ADDONS` Var With Value True**"
+inline_4: "**BoudyOS**\n**{}** සඳහා පුද්ගලික Telegram වැඩබිම\n\n**දළ විශ්ලේෂණය**\n• ප්ලගීන: {}\n• ඇඩෝන: {}\n• විධාන: {}\n\nපහතින් ප්‍රවර්ගයක් තෝරන්න."
+inline_5: "**Menu Has Been Closed**"
 
 # tagnotif
 tagnot_1: "{} ඔයාව ටැග් කලා {} එකේ\n\n```{}```\n\n[📨 Message 📨]({})"
@@ -56,18 +56,18 @@ afk_5: "`AFK යනවා.`\n\n
 afk_6: "මම AFK යනවා."
 
 # bot
-alive_1: "**The Ultroid Userbot...**\n\n
+alive_1: "**The BoudyOS Userbot...**\n\n
 **{}**\n\n
 ┏━━━━━━━━━━━━━━━━━━━━━\n
 ┣ **Owner** - `{}`\n
 ┣ **Version** - `{}`\n
-┣ **Py-Ultroid** - `{}`\n
+┣ **Py-BoudyOS** - `{}`\n
 ┣ **UpTime** - `{}`\n
 ┣ **Python** - `{}`\n
 ┣ **Telethon** - `{}`\n
 ┣ **Branch** - `{}`\n
 ┗━━━━━━━━━━━━━━━━━━━━━"
-log: " Ultroid userbot ගේ **Heroku** Logs.\n[මෙතනත් ]({}) paste කර ඇත!"
+log: " BoudyOS userbot ගේ **Heroku** Logs.\n[මෙතනත් ]({}) paste කර ඇත!"
 ping: "** වැඩ වැඩ මහත්තයො ** Pong !! ** `{}ms`\n**Uptime** - `{}`"
 usage: "**⚙️ Dyno භාවිතය ⚙️**:\n\n
  -> **{}** `ගේ Dyno භාවිතය`:\n
@@ -120,12 +120,12 @@ core_8: "{}.py කියල මොඩියුල් නෑ"
 core_9: "`unload කරන්න ඕන Plugin එකේ නම කියන්න බොසා`"
 core_10: "**සාර්තකව** `{}` **Unload කරා.**"
 core_11: "**නිල Plugin Unload කිරීම කල නොහැක**"
-core_12: "`{}`**කියල Pʟᴜɢɪɴ නෑ** "
+core_12: "`{}`**කියල Plugin නෑ** "
 core_13: "`Uninstall කිරීමට අවශ්‍ය Plugin එකේ නම ලබා දෙන්න`"
 core_14: "**සාර්තකව ** `{}` **ඉවත් කරන ලදි.**"
-core_15: "**නිල Pʟᴜɢɪɴs ඉවත් කරන්න බෑ**"
+core_15: "**නිල Plugins ඉවත් කරන්න බෑ**"
 core_16: "`Load කිරීමට අවශ්‍ය Plugin එකේ නම කියන්න`"
-core_17: "`{}`**සාර්තකව Lᴏᴀᴅ කරා** "
+core_17: "`{}`**සාර්තකව Load කරා** "
 core_18: "`{}`**Load කිරීම අසාර්තකයි**  **මේ error එක ලෝඩ් කිරීමේ ක්‍රියාවලිය තුලදී මතු උනා.**\n`{}`"
 
 # fedutils
@@ -146,10 +146,10 @@ sf_14: "SuperFBan Completed.\nTotal Feds - {}.\nExcluded - {}.\n Affected {} fed
 sf_15: "Starting a Mass-UnFedBan..."
 sf_16: "SuperUnFBan Completed.\nTotal Feds - {}.\nExcluded - {}.\n Affected {} feds.\n#TB"
 sf_17: "`Give me someones id, or reply to somones message to check his/her fedstat.`"
-sf_18: "List of feds {} has been banned in.\n\nCollected using Ultroid."
+sf_18: "List of feds {} has been banned in.\n\nCollected using BoudyOS."
 sf_19: "**Error**\n `Unblock` @MissRose_Bot `and try again!"
 sf_20: "`Extracting information...`"
-sf_21: "\n\nFedInfo Extracted by Ultroid"
+sf_21: "\n\nFedInfo Extracted by BoudyOS"
 
 # gdrive
 gdrive_1: "`You have already authorised with Google Drive`"
@@ -157,7 +157,7 @@ gdrive_2: "Go [here](https://console.developers.google.com/flows/enableapi?apiid
 Send your GDRIVE_CLIENT_ID and GDRIVE_CLIENT_SECRET as this.\n`GDRIVE_CLIENT_ID GDRIVE_CLIENT_SECRET` separated by space."
 gdrive_3: "`Wrong Client Id`"
 gdrive_4: "`Something went wrong! Send `/auth` again.\nIf same happens contact `@TeamUltroid"
-gdrive_5: "`Success!\nYou are all set to use Google Drive with Ultroid Userbot.`"
+gdrive_5: "`Success!\nYou are all set to use Google Drive with BoudyOS Userbot.`"
 gdrive_6: "`Go to `{}` and send ``/auth.`"
 gdrive_7: "**Successfully Uploaded File on G-Drive :**\n\n[{}]({})"
 
@@ -274,7 +274,7 @@ bot_1: "හේයි, මම ජීවතුන් අතර සිටිමි.
 youtube_7: "වීඩියෝ බාගත කිරීම සඳහා මට (යූ ටියුබ්) සෙවුම් විමසුමක් දෙන්න!"
 com_5: "බාගත කිරීම ..."
 schdl_1: "`උපලේඛනගත පණිවිඩය සාර්ථකව`"
-help_7: "පේළිගත ප්ලගීන ••"
+help_7: "පේළිගත ප්ලගීන"
 help_globaltools: "-\n\n`{i} gban <පිළිතුරු පරිශීලක / පරිශීලක නාමය>`\n• `{i} gugban`\n    තහනම් / උන්බන් ගෝලීයව.\n\n• `{i} gstat <පරිශීලක / userid / userim>> පිළිතුරු\n   පරිශීලකයා GBANDED දැයි පරීක්ෂා කරන්න.\n\n`{i} listGBan`: සියලුම අභිජනන පරිශීලකයින් ලැයිස්තුගත කරන්න.\n\n• `{i} gmute` | `{i} uggmute` <පිළිතුරු පරිශීලක / පරිශීලක නාමය>\n    ගෝලීය වශයෙන් නිශ්ශබ්ද / නිශ්ශබ්ද කරන්න.\n\n`{i} gkick <පිළිතුරු / පරිශීලක නාමය>` `' ගෝලීය වශයෙන් කික් පරිශීලකයා`\n• `{i} gath} gate <text / resply>` `` `` `` `` engs සියල්ලම grps on\n\n`{i} gadmincate <පෙළ / පිළිතුර> ඔබේ පරිපාලක කතාබස්වල ගෝලීය වශයෙන් විකාශනය කරන්න\n• `{i} ගුෆාන්ට් <පෙළ / පිළිතුරු>` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `` `quest පරිශීලකයින්\n\n• {i} gblacklist <චැට් හැඳුනුම්පත / පරිශීලක නාමය / කිසිවක් නැත (වත්මන් කතාබස් සඳහා) `\n   අසාදු ලේඛනයට කතාබස් කරන්න සහ ගෝලීය විකාශනය නොසලකා හරියි.\n`{i} අපොග්බැක්ලිස්ට්`` බ්ලැක්ලිස්ට් වෙතින් කතාබස් ඉවත් කරන්න .`\n\n`{i} gpromote <forcher to පරිශීලකයාට පිළිතුරු දෙන්න> <චැනල් / සමූහය / සියල්ල> <rank>` `\n    ඔබ පරිපාලක සිටින තැන ගෝලීයව පරිශීලකයා ප්රවර්ධනය කරන්න\n    - කණ්ඩායම් / නාලිකා වල / සියල්ලන් තුළ පමණක් ප්රවර්ධනය කළ යුතුද යන්න සකසන්න.\n    උදා: `ග්රාමෝට් සමූහ ලොක්කාගේ ~ සියලුම ග්රන්ථවල පරිශීලකයා ප්රවර්ධනය කරයි.\n        `gpromote @ousername dumand aread '& සියලුම කණ්ඩායම් සහ නාලිකාවේ පරිශීලකයා ප්රවර්ධනය කරන්න\n• `{i} gdemote` -' ගෝලීය වශයෙන් පරිශීලකයා."
 help_words: "-\n\n`{i} හි අර්ථය <වචනය>`\n    වචනයේ තේරුම ලබා ගන්න.\n\n`{i} සමකාලීනය <වචනය>`\n    සියලුම සමාන පද ලබා ගන්න.\n\n`{i} ඇන්ටනිම් <වචනය>`\n    සියලුම ප්රතිවිරෝධතා ලබා ගන්න.\n\n• `{i} ud <වචනය>`\n    URBETTORY වෙතින් වචන දුර්වලතාවය ලබා ගන්න."
 srch_2: "'එවැනි පරිශීලකයෙක් හමු නොවීය ...'"
@@ -303,14 +303,14 @@ ban_5: "** හේතුව **: }"
 kick_1: "පරිශීලකයෙකු පයින් ගසන්නට මට අයිතියක් නැත."
 pmbot_6: "පරිශීලකයා කිසි විටෙකත් තහනම් කළේ නැත!"
 help_vctools: "-\n\n• `{i} ආරම්භකෙව්\n    කණ්ඩායමක් තුළ කණ්ඩායම් ඇමතුම ආරම්භ කරන්න.\n\n• `{i} නැවැත්වීම\n    කණ්ඩායමක කණ්ඩායම් ඇමතුම නවත්වන්න.\n\n• `{i} vctitle <මාතෘකාව>`\n    මාතෘකා කණ්ඩායම් ඇමතුම වෙනස් කරන්න.\n\n• `{i} vcinvit`\n    කණ්ඩායම් ඇමතුමෙහි කණ්ඩායම්වල සියලුම සාමාජිකයින්ට ආරාධනා කරන්න.\n    (ඔබ සම්බන්ධ විය යුතුය)"
-help_5: "ඇඩෝන •"
+help_5: "ඇඩෝන"
 vct_4: "හ voice කතාබස් නැවතුණා ...`"
 pro_2: "{} `දැන් {} හි දැන් {} හි පරිපාලකයෙක් .`"
 vct_6: "ආදානයක් හමු නොවීය!"
 audiotools_4: "'වැරදි දත්ත`"
 audiotools_5: "'බාගත කිරීමට උත්සාහ කිරීම ...'"
 help_audiotools: "✘ විධාන ලබා ගත හැකිය -\n`. ආදිවෝයිසෝ <ශ්රව්ය උපකරණ>`\n   ශ්රව්ය සිට හ voice සටහනක් නිර්මාණය කරයි.\n\n`.\n   නියමිත වේලාවට අනුව ශ්රව්ය උපකරණ කපන්න.\n   කාලය තත්පර කිහිපයකින් විය යුතුය.`. රිම් 50-70`\n\n`.\n   එයින් ශ්රව්ය උපකරණ උපුටා ගැනීම."
-inline_7: "විධාන ලැයිස්තුව ලබා ගැනීම සඳහා .හෝප් {කරන්න."
+inline_7: "විධාන ලැයිස්තුව සඳහා `.help {}` භාවිතා කරන්න."
 blk_1: "'බ්ලැක්ලිස්ට් වෙත වචනය දෙන්න."
 can_4: "Δ # #USUSTAMEUPDATE\n\n{} නව පරිශීලක නාමය -> }"
 audiotools_8: "වීඩියෝ ලිපිගොනුවට පිළිතුරු දෙන්න."
@@ -321,7 +321,7 @@ sf_22: "කිසිදු පරිශීලකයෙකු නම් කර �
 sts_6: "'පණිවිඩයට / මාධ්යයට පිළිතුරු දෙන්න ...'"
 blk_3: "'බ්ලැක්ලිස්ට් වෙතින් ඉවත් කිරීමට වචනය දෙන්න."
 vcbot_18: "Ac උපසීපෙළ අවුත් ලැයිස්තුව හිස් ය."
-help_4: "• ප්ලගීන"
+help_4: "ප්ලගීන"
 cha_3: "මූලාශ්ර නාලිකාව දැනටමත් එකතු කර ඇත"
 de_2: "{`` තවදුරටත් පරිපාලකයෙකු {} `"
 spcltool_4: "'පළමු පිළිතුර .ආව් සමඟ."
@@ -342,7 +342,7 @@ audiotools_2: "සාර්ථකව බාගත කර ඇත, දැන් �
 help_greetings: "-\n\n---- සාදන්නා ----\n`{i} සැකසීම <පණිවිඩ / පණිවිඩයට පිළිතුරු>\n    වත්මන් කතාබහ තුළ පිළිගැනීමේ පණිවිඩය සකසන්න.\n\n`{i} seallyVers`\n    වත්මන් කතාබහෙහි පිළිගැනීම මකන්න.\n\n`{i} getwemable`\n    වත්මන් කතාබහ තුළ පිළිගැනීමේ පණිවිඩය ලබා ගන්න.\n\n---- ආයුබෝවන් ----\n• `{i} සෙටගොඩ්බි <පණිවිඩ / පණිවිඩයට පිළිතුරු>\n    වත්මන් කතාබහ තුළ සමුගන්න පණිවිඩය සකසන්න.\n\n• `{i} eliltgodye`\n    වත්මන් කතාබහ තුළ සමුගැනීම මකන්න.\n\n• `{i} ගෙගොංගු '\n    වත්මන් කතාබහ තුළ සමුගන පණිවිඩය ලබා ගන්න.\n\n• `{i} ස්තූතියි / අක්රිය කරන්න`\n    ඔබේ කණ්ඩායම්වල සාමාජිකයින් 100 * x ගණන් කිරීම සඳහා ස්තූති කරන්න."
 unban_1: "`පරිශීලකයෙකු වෙත පිළිතුරු දෙන්න හෝ ඔහුව නිදහස් කිරීමට පරිශීලක නාමය ලබා දෙන්න!`"
 ban_1: "`පරිශීලකයෙකුට පිළිතුරු දෙන්න හෝ ඔහුට තහනම් කිරීමට පරිශීලක නාමය ලබා දෙන්න!`"
-help_6: "•• හී චැට්"
+help_6: "හී චැට්"
 vcbot_13: "'මෙම කතාබහ තුළ නැවත ධාවනය නැවත ආරම්භ කළා"
 com_4: "`සහාය නොදක්වන මාධ්යය."
 youtube_5: "ශ්රව්ය උපකරණ බාගත කිරීම සඳහා මට (යූ ටියුබ්) සෙවුම් විමසුමක් දෙන්න!"
@@ -433,7 +433,7 @@ grt_4: "`ආරක්ෂිත නැත!`"
 help_videotools: "-\n\n• `{i} තත්පර කිහිපයකින් <කාලය>` `` ``\n   වීඩියෝවේ කෙටි නියැදිය නිර්මාණය කරයි ..\n\n• `{i} vshots not වෙඩි ගණන>`\n   වීඩියෝවේ තිර රුව නිර්මාණය කරයි ..\n\n• `{i} vtrim <ආරම්භක වේලාව> - තත්පර කිහිපයකින්> අවසාන කාලය>\n    බෝග දිගු වීඩියෝවක් .."
 pinned_1: "පින්ඩ් පණිවිඩයක් හමු නොවීය!"
 blk_2: "සිදු කරන ලදි: `{}` මෙහි අසාදු ලේඛනය."
-help_10: "•• cʟᴏꜱᴇ ••"
+help_10: "close"
 vcbot_9: "ඔයා මට විහිළු කරනව ද?\nමොනවද සෙල්ලම් කරන්න ඕනෙ?"
 help_unsplash: "-\n\n• {i} ust නෝලාෂ් <සෙවුම් විමසුම>;<පින්තූර නැත>\n    Unlloph රූප සෙවීම."
 carbon_3: "කාබන් නිර්මාණය කිරීම සඳහා අභිරුචි වර්ණයක් දෙන්න ... `"

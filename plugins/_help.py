@@ -19,20 +19,23 @@ from . import HNDLR, LOGS, OWNER_NAME, asst, get_string, inline_pic, udB, ultroi
 
 _main_help_menu = [
     [
-        Button.inline(get_string("help_4"), data="uh_Official_"),
-        Button.inline(get_string("help_5"), data="uh_Addons_"),
+        Button.inline("Plugins", data="uh_Official_"),
+        Button.inline("Add-ons", data="uh_Addons_"),
     ],
     [
-        Button.inline(get_string("help_6"), data="uh_VCBot_"),
-        Button.inline(get_string("help_7"), data="inlone"),
+        Button.inline("Voice Chat", data="uh_VCBot_"),
+        Button.inline("Inline", data="inlone"),
     ],
     [
-        Button.inline(get_string("help_8"), data="ownr"),
+        Button.inline("Updates", data="ownr"),
         Button.url(
-            get_string("help_9"), url=f"https://t.me/{asst.me.username}?start=set"
+            "Settings", url=f"https://t.me/{asst.me.username}?start=set"
         ),
     ],
-    [Button.inline(get_string("help_10"), data="close")],
+    [
+        Button.url("Support", url="https://github.com/boudywho/BoudyOS/issues"),
+        Button.inline("Close", data="close"),
+    ],
 ]
 
 
@@ -105,7 +108,7 @@ async def _help(ult):
                     await ult.eor(output)
         except BaseException as er:
             LOGS.exception(er)
-            await ult.eor("Error 🤔 occured.")
+            await ult.eor("An error occurred while opening help.")
     else:
         try:
             results = await ult.client.inline_query(asst.me.username, "ultd")
@@ -114,8 +117,13 @@ async def _help(ult):
             for x in LIST.values():
                 z.extend(x)
             cmd = len(z) + 10
+            buttons = _main_help_menu
             if udB.get_key("MANAGER") and udB.get_key("DUAL_HNDLR") == "/":
-                _main_help_menu[2:3] = [[Button.inline("• Manager Help •", "mngbtn")]]
+                buttons = [
+                    *_main_help_menu[:2],
+                    [Button.inline("Manager Help", "mngbtn")],
+                    *_main_help_menu[2:],
+                ]
             return await ult.reply(
                 get_string("inline_4").format(
                     OWNER_NAME,
@@ -124,7 +132,7 @@ async def _help(ult):
                     cmd,
                 ),
                 file=inline_pic(),
-                buttons=_main_help_menu,
+                buttons=buttons,
             )
         except BotResponseTimeoutError:
             return await ult.eor(
