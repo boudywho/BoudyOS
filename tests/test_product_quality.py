@@ -213,6 +213,7 @@ class ProductSurfaceTests(unittest.TestCase):
         patterns = (ROOT / ".dockerignore").read_text("utf-8").splitlines()
         for required in (
             "README.md",
+            ".github/workflows/codeql-analysis.yml",
             "pyUltroid/__init__.py",
             "resources/extras/boudyos_avatar.jpg",
             "tests/test_product_quality.py",
