@@ -1,5 +1,12 @@
 # Changelog
 
+## BoudyOS 2.2.2 — Python 3.10 safe-path compatibility
+
+- Replaced the Python 3.11-only `-P` service flag with an immutable launcher
+  compatible with Python 3.10. The launcher removes the writable work directory
+  from `sys.path`, pins imports to the root-owned release, and disables bytecode
+  writes without weakening the managed runtime boundary.
+
 ## BoudyOS 2.2.1 — legacy migration readiness
 
 - Corrected the migration `prepare` and legacy rollback gates for installations

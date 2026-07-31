@@ -792,12 +792,17 @@ test ! -e "$RUNTIME/work/pyUltroid"
 test -d "$RUNTIME/work/resources/downloads"
 (
     cd "$RUNTIME/work"
-    PYTHONPATH="$SOURCE" PYTHONSAFEPATH=1 python3 -P - "$SOURCE" <<'PY'
+    PYTHONPATH="$SOURCE" python3 -s - "$SOURCE" <<'PY'
 import sys
 from pathlib import Path
+source = Path(sys.argv[1]).resolve()
+working = Path.cwd().resolve()
+sys.path[:] = [str(source)] + [
+    entry for entry in sys.path
+    if entry and Path(entry).resolve() not in {source, working}
+]
 from pyUltroid.paths import OFFICIAL_PLUGINS, SOURCE_ROOT
 
-source = Path(sys.argv[1]).resolve()
 assert SOURCE_ROOT == source
 assert sorted(path.name for path in OFFICIAL_PLUGINS.glob("*.py")) == [
     "__init__.py", "official.py"
@@ -1556,6 +1561,46 @@ PY
         self.assertIn("boudyos-deploy stage", documentation)
         self.assertIn("boudyos-migrate-ultroid rollback", documentation)
         self.assertIn("original ultroid.service was restored", source)
+
+    def test_python310_launcher_excludes_writable_working_directory(self):
+        launcher = ROOT / "ops/boudyos-python-launcher"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source"
+            work = root / "work"
+            (source / "ops").mkdir(parents=True)
+            (source / "pyUltroid").mkdir()
+            (work / "pyUltroid").mkdir(parents=True)
+            shutil.copy2(launcher, source / "ops/boudyos-python-launcher")
+            result_path = root / "result.txt"
+            (source / "pyUltroid/__main__.py").write_text(
+                "import os, sys\n"
+                "from pathlib import Path\n"
+                "work = Path(os.environ['TEST_WORK']).resolve()\n"
+                "paths = {Path(p).resolve() for p in sys.path if p}\n"
+                "Path(os.environ['TEST_RESULT']).write_text("
+                "'source' if work not in paths else 'unsafe', encoding='ascii')\n",
+                "utf-8",
+            )
+            (work / "pyUltroid/__main__.py").write_text(
+                "raise SystemExit('writable package executed')\n", "utf-8"
+            )
+            result = subprocess.run(
+                [sys.executable, "-s", str(source / "ops/boudyos-python-launcher")],
+                cwd=work,
+                env={
+                    **os.environ,
+                    "TEST_WORK": str(work),
+                    "TEST_RESULT": str(result_path),
+                    "PYTHONPATH": str(work),
+                },
+                text=True,
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result_path.read_text("ascii"), "source")
 
     def test_legacy_restart_stability_does_not_require_managed_heartbeat(self):
         script = ROOT / "ops/boudyos-migrate-ultroid"

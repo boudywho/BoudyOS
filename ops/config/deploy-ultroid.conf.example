@@ -1,6 +1,6 @@
 # Exact legacy production migration example. Install root:root 0640 as
 # /etc/boudyos/deploy.conf and replace only the commit placeholder.
-BOUDYOS_RELEASE_TAG=v2.2.1
+BOUDYOS_RELEASE_TAG=v2.2.2
 BOUDYOS_RELEASE_COMMIT=0000000000000000000000000000000000000000
 BOUDYOS_RELEASE_ROOT=/opt/boudyos/releases
 BOUDYOS_RUNTIME_ROOT=/var/lib/boudyos/workspaces

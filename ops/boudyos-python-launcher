@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""Start BoudyOS without placing its writable working directory on sys.path."""
+
+from __future__ import annotations
+
+import os
+import runpy
+import sys
+from pathlib import Path
+
+
+def _resolved(value: str) -> Path | None:
+    if not value:
+        return None
+    try:
+        return Path(value).resolve(strict=False)
+    except OSError:
+        return None
+
+
+source = Path(__file__).resolve(strict=True).parents[1]
+working = Path.cwd().resolve(strict=True)
+clean_path: list[str] = [str(source)]
+for entry in sys.path:
+    resolved = _resolved(entry)
+    if resolved is None or resolved in {source, working}:
+        continue
+    clean_path.append(entry)
+sys.path[:] = clean_path
+sys.dont_write_bytecode = True
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+runpy.run_module("pyUltroid", run_name="__main__", alter_sys=True)

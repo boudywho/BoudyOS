@@ -14,9 +14,24 @@ class ReleaseContractTests(unittest.TestCase):
     def test_product_and_upstream_versions_are_distinct(self):
         namespace = {}
         exec((ROOT / "pyUltroid/version.py").read_text("utf-8"), namespace)
-        self.assertEqual(namespace["BOUDYOS_VERSION"], "2.2.1")
-        self.assertEqual(namespace["ultroid_version"], "2.2.1")
+        self.assertEqual(namespace["BOUDYOS_VERSION"], "2.2.2")
+        self.assertEqual(namespace["ultroid_version"], "2.2.2")
         self.assertEqual(namespace["__version__"], "2026.04.03")
+
+    def test_python310_service_uses_immutable_safe_path_launcher(self):
+        launcher = ROOT / "ops/boudyos-python-launcher"
+        self.assertTrue(launcher.is_file())
+        source = launcher.read_text("utf-8")
+        self.assertIn('runpy.run_module("pyUltroid"', source)
+        self.assertIn("working = Path.cwd().resolve", source)
+        for name in (
+            "ops/systemd/boudyos.service.example",
+            "ops/systemd/ultroid-boudyos.conf.example",
+        ):
+            unit = (ROOT / name).read_text("utf-8")
+            self.assertNotIn(" -P ", unit)
+            self.assertIn("-s /var/lib/boudyos/current/source/ops/boudyos-python-launcher", unit)
+            self.assertIn("PYTHONDONTWRITEBYTECODE=1", unit)
 
     def test_runtime_has_no_generic_eval_or_shell_true(self):
         offenders = []
