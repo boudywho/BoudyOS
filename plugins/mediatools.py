@@ -20,6 +20,8 @@ from datetime import datetime as dt
 
 from pyUltroid.fns.misc import rotate_image
 from pyUltroid.fns.tools import make_html_telegraph
+from pyUltroid.security.subprocess import run_exec
+from pyUltroid.security.paths import cli_path
 
 from . import (
     LOGS,
@@ -80,10 +82,11 @@ async def mi(e):
         naam, xx = match, "file"
     else:
         return await e.eor(get_string("cvt_3"), time=5)
-    out, er = await bash(f"mediainfo '{naam}'")
-    if er:
-        LOGS.info(er)
-        out = extra or str(er)
+    result = await run_exec(["mediainfo", cli_path(naam)], timeout=60)
+    out = result.stdout
+    if not result.ok:
+        LOGS.info(result.stderr)
+        out = extra or result.stderr or "mediainfo failed"
         return await e.edit(out, link_preview=False)
     makehtml = ""
     if naam.endswith((".jpg", ".png")):
@@ -128,9 +131,15 @@ async def rotate_(ult):
     if reply.video:
         media = await reply.download_media()
         file = f"{media}.mp4"
-        await bash(
-            f'ffmpeg -i "{media}" -c copy -metadata:s:v:0 rotate={match} "{file}" -y'
+        result = await run_exec(
+            [
+                "ffmpeg", "-i", cli_path(media), "-c", "copy",
+                "-metadata:s:v:0", f"rotate={match}", cli_path(file), "-y",
+            ],
+            timeout=300,
         )
+        if not result.ok:
+            return await msg.edit("`ffmpeg failed to rotate the video.`")
     elif photo or reply.photo or reply.sticker:
         media = await ult.client.download_media(photo or reply)
         img = cv2.imread(media)

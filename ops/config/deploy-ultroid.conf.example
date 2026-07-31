@@ -1,0 +1,17 @@
+# Exact legacy production migration example. Install root:root 0640 as
+# /etc/boudyos/deploy.conf and replace only the commit placeholder.
+BOUDYOS_RELEASE_TAG=v2.2.0
+BOUDYOS_RELEASE_COMMIT=0000000000000000000000000000000000000000
+BOUDYOS_RELEASE_ROOT=/opt/boudyos/releases
+BOUDYOS_RUNTIME_ROOT=/var/lib/boudyos/workspaces
+BOUDYOS_RUNTIME_LINK=/var/lib/boudyos/current
+BOUDYOS_RUNTIME_USER=ultroid
+BOUDYOS_RUNTIME_GROUP=ultroid
+BOUDYOS_STATUS_DIR=/var/lib/boudyos/status
+BOUDYOS_APP_STATUS_DIR=/var/lib/boudyos/app-status
+BOUDYOS_STATUS_GROUP=ultroid
+BOUDYOS_RELEASE_METADATA=/var/lib/boudyos/status/release.json
+BOUDYOS_SERVICE=ultroid.service
+BOUDYOS_READY_FILE=/run/boudyos/ready
+BOUDYOS_READY_MAX_AGE_SECONDS=45
+BOUDYOS_KEEP_RELEASES=5

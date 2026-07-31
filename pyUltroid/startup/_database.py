@@ -6,8 +6,6 @@
 # <https://github.com/TeamUltroid/pyUltroid/blob/main/LICENSE>.
 
 import ast
-import os
-import sys
 
 from .. import run_as_module
 from . import *
@@ -20,31 +18,31 @@ Redis = MongoClient = psycopg2 = Database = None
 if Var.REDIS_URI or Var.REDISHOST:
     try:
         from redis import Redis
-    except ImportError:
-        LOGS.info("Installing 'redis' for database.")
-        os.system(f"{sys.executable} -m pip install -q redis hiredis")
-        from redis import Redis
+    except ImportError as exc:
+        raise DependencyMissingError(
+            "Redis support is not installed; install requirements/integrations.txt."
+        ) from exc
 elif Var.MONGO_URI:
     try:
         from pymongo import MongoClient
-    except ImportError:
-        LOGS.info("Installing 'pymongo' for database.")
-        os.system(f"{sys.executable} -m pip install -q pymongo[srv]")
-        from pymongo import MongoClient
+    except ImportError as exc:
+        raise DependencyMissingError(
+            "MongoDB support is not installed; install requirements/integrations.txt."
+        ) from exc
 elif Var.DATABASE_URL:
     try:
         import psycopg2
-    except ImportError:
-        LOGS.info("Installing 'pyscopg2' for database.")
-        os.system(f"{sys.executable} -m pip install -q psycopg2-binary")
-        import psycopg2
+    except ImportError as exc:
+        raise DependencyMissingError(
+            "PostgreSQL support is not installed; install requirements/integrations.txt."
+        ) from exc
 else:
     try:
         from localdb import Database
-    except ImportError:
-        LOGS.info("Using local file as database.")
-        os.system(f"{sys.executable} -m pip install -q localdb.json")
-        from localdb import Database
+    except ImportError as exc:
+        raise DependencyMissingError(
+            "The required localdb.json package is not installed."
+        ) from exc
 
 # --------------------------------------------------------------------------------------------- #
 

@@ -7,15 +7,23 @@
 
 import os
 import sys
-import telethonpatch
+
+try:
+    import telethonpatch
+except ImportError as exc:
+    raise RuntimeError(
+        "BoudyOS requires the pinned Telethon-Patch dependency; reinstall with "
+        "requirements.txt and the matching constraints/py3xx.txt file."
+    ) from exc
 from .version import __version__
+from .paths import OFFICIAL_PLUGINS, source_resource
 
 run_as_module = __package__ in sys.argv or sys.argv[0] == "-m"
 
 
 class ULTConfig:
     lang = "en"
-    thumb = "resources/extras/ultroid.jpg"
+    thumb = str(source_resource("extras", "ultroid.jpg"))
 
 
 if run_as_module:
@@ -29,9 +37,9 @@ if run_as_module:
     from .startup.funcs import _version_changes, autobot, enable_inline, update_envs
     from .version import ultroid_version
 
-    if not os.path.exists("./plugins"):
+    if not OFFICIAL_PLUGINS.is_dir():
         LOGS.error(
-            "'plugins' folder not found!\nMake sure that, you are on correct path."
+            "The immutable official plugins directory is unavailable."
         )
         exit()
 

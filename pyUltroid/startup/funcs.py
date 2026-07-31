@@ -44,6 +44,7 @@ from telethon.utils import get_peer_id
 from decouple import config, RepositoryEnv
 from .. import LOGS, ULTConfig
 from ..fns.helper import download_file, inline_mention, updater
+from ..paths import source_resource
 
 db_url = 0
 REDIS_KEEPALIVE_KEY = "KEEP_ACTIVE"
@@ -156,7 +157,7 @@ async def startup_stuff():
 
     CT = udB.get_key("CUSTOM_THUMBNAIL")
     if CT:
-        path = "resources/extras/thumbnail.jpg"
+        path = "resources/downloads/thumbnail.jpg"
         ULTConfig.thumb = path
         try:
             await download_file(CT, path)
@@ -383,7 +384,7 @@ async def autopilot():
                 LOGS.exception(er)
     if isinstance(chat.photo, ChatPhotoEmpty):
         try:
-            photo = "resources/extras/boudyos_avatar.jpg"
+            photo = str(source_resource("extras", "boudyos_avatar.jpg"))
             uploaded = await ultroid_bot.upload_file(photo)
             await ultroid_bot(
                 EditPhotoRequest(int(channel), InputChatUploadedPhoto(uploaded))
@@ -414,7 +415,7 @@ async def _apply_boudyos_branding(asst, udB, ultroid_bot):
             sir = owner.first_name
         else:
             sir = f"@{owner.username}"
-        file = "resources/extras/boudyos_avatar.jpg"
+        file = str(source_resource("extras", "boudyos_avatar.jpg"))
         msg = await asst.send_message(
             chat_id, "**BoudyOS assistant customization** started in @BotFather."
         )
@@ -478,10 +479,19 @@ async def customize():
 
 async def plug(plugin_channels):
     from .. import ultroid_bot
+    from ..security.settings import setting_enabled
     from .utils import load_addons
 
     if ultroid_bot._bot:
         LOGS.info("Plugin Channels can't be used in 'BOTMODE'")
+        return
+    from .. import udB
+
+    if not setting_enabled(udB, "ALLOW_UNTRUSTED_PLUGINS"):
+        LOGS.warning(
+            "Plugin-channel downloads are disabled by default. Existing local "
+            "add-on files remain available."
+        )
         return
     if os.path.exists("addons") and not os.path.exists("addons/.git"):
         shutil.rmtree("addons")
@@ -523,7 +533,7 @@ async def ready():
         MSG = """**Welcome to BoudyOS**
 
 Your personal Telegram workspace is ready. Open the guide to review the essentials."""
-        PHOTO = "resources/extras/boudyos_avatar.jpg"
+        PHOTO = str(source_resource("extras", "boudyos_avatar.jpg"))
         BTTS = Button.inline("Open guide", "initft_2")
         udB.set_key("INIT_DEPLOY", "Done")
     else:
@@ -560,7 +570,6 @@ Your personal Telegram workspace is ready. Open the guide to review the essentia
             LOGS.exception(ef)
     if spam_sent and not spam_sent.media:
         udB.set_key("LAST_UPDATE_LOG_SPAM", spam_sent.id)
-
 async def WasItRestart(udb):
     key = udb.get_key("_RESTART")
     if not key:

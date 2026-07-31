@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-REPO="https://github.com/TeamUltroid/Ultroid.git"
+REPO="https://github.com/boudywho/BoudyOS.git"
 CURRENT_DIR="$(pwd)"
 ENV_FILE_PATH=".env"
 DIR="/root/TeamUltroid"
@@ -139,38 +139,21 @@ clone_repo() {
 }
 
 install_requirements() {
-    pip3 install -q --upgrade pip
     echo -e "\n\nInstalling requirements... "
-    pip3 install -q --no-cache-dir -r $DIR/requirements.txt
-    pip3 install -q -r $DIR/resources/startup/optional-requirements.txt
-}
-
-railways_dep() {
-    if [ $RAILWAY_STATIC_URL ]; then
-        echo -e "Installing YouTube dependency... "
-        pip3 install -q yt-dlp
+    if [ "$(python3 -c 'import sys; print(sys.version_info[:2] >= (3, 13))')" = "True" ]; then
+        CONSTRAINT_FILE="$DIR/constraints/py313.txt"
+    else
+        CONSTRAINT_FILE="$DIR/constraints/py310.txt"
     fi
+    python3 -m pip install -q --no-cache-dir \
+        -r "$DIR/requirements/media.txt" \
+        -c "$CONSTRAINT_FILE"
+    python3 -m pip check
 }
 
 misc_install() {
-    if [ $SETUP_PLAYWRIGHT ]
-    then
-        echo -e "Installing playwright."
-        pip3 install playwright
-        playwright install
-    fi
-    if [ $OKTETO_TOKEN ]; then
-        echo -e "Installing Okteto-CLI... "
-        curl https://get.okteto.com -sSfL | sh
-    elif [ $VCBOT ]; then
-        if [ -d $DIR/vcbot ]; then
-            cd $DIR/vcbot
-            git pull
-        else
-            echo -e "Cloning VCBOT.."
-            git clone https://github.com/TeamUltroid/VcBot $DIR/vcbot
-        fi
-        pip3 install pytgcalls==3.0.0.dev23 && pip3 install av -q --no-binary av
+    if [ "${VCBOT:-}" ]; then
+        echo "VCBOT dependencies are optional; install requirements/voice.txt explicitly."
     fi
 }
 
@@ -178,14 +161,15 @@ dep_install() {
     echo -e "\n\nInstalling DB Requirement..."
     if [ $MONGO_URI ]; then
         echo -e "   Installing MongoDB Requirements..."
-        pip3 install -q pymongo[srv]
+        python3 -m pip install -q -r "$DIR/requirements/integrations.txt" -c "$CONSTRAINT_FILE"
     elif [ $DATABASE_URL ]; then
         echo -e "   Installing PostgreSQL Requirements..."
-        pip3 install -q psycopg2-binary
+        python3 -m pip install -q -r "$DIR/requirements/integrations.txt" -c "$CONSTRAINT_FILE"
     elif [ $REDIS_URI ]; then
         echo -e "   Installing Redis Requirements..."
-        pip3 install -q redis hiredis
+        python3 -m pip install -q -r "$DIR/requirements/integrations.txt" -c "$CONSTRAINT_FILE"
     fi
+    python3 -m pip check
 }
 
 main() {
@@ -204,7 +188,6 @@ main() {
     (check_python)
     (clone_repo)
     (install_requirements)
-    (railways_dep)
     (dep_install)
     (misc_install)
     echo -e "\n\nSetup Completed."

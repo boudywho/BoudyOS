@@ -43,6 +43,7 @@ from ..dB import DEVLIST
 from ..dB._core import LIST, LOADED
 from ..fns.admins import admin_check
 from ..fns.helper import bash
+from ..security.subprocess import run_exec
 from ..fns.helper import time_formatter as tf
 from ..version import __version__ as pyver
 from ..version import ultroid_version as ult_ver
@@ -204,8 +205,10 @@ def ultroid_cmd(
                 ftext += "`\n\n--------END ULTROID CRASH LOG--------"
                 ftext += "\n\n\n**Last 5 commits:**`\n"
 
-                stdout, stderr = await bash('git log --pretty=format:"%an: %s" -5')
-                result = stdout + (stderr or "")
+                process = await run_exec(
+                    ["git", "log", "--pretty=format:%an: %s", "-5"], timeout=10
+                )
+                result = process.stdout + (process.stderr or "")
 
                 ftext += f"{result}`"
 

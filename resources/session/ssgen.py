@@ -7,6 +7,8 @@
 # <https://www.github.com/TeamUltroid/Ultroid/blob/main/LICENSE/>.
 
 import os
+import subprocess
+import sys
 from time import sleep
 
 ULTROID = r"""
@@ -32,11 +34,7 @@ def spinner(x):
 
 def clear_screen():
     # https://www.tutorialspoint.com/how-to-clear-screen-in-python#:~:text=In%20Python%20sometimes%20we%20have,screen%20by%20pressing%20Control%20%2B%20l%20.
-    if os.name == "posix":
-        os.system("clear")
-    else:
-        # for windows platfrom
-        os.system("cls")
+    print("\033[2J\033[H", end="")
 
 
 def get_api_id_and_hash():
@@ -58,10 +56,28 @@ def telethon_session():
         import telethon
         x = "\bFound an existing installation of Telethon...\nSuccessfully Imported.\n\n"
     except ImportError:
-        print("Installing Telethon...")
-        os.system("pip uninstall telethon -y && pip install -U telethon")
-
-        x = "\bDone. Installed and imported Telethon."
+        print("Installing the pinned BoudyOS Telegram client dependencies...")
+        constraint = (
+            "constraints/py313.txt"
+            if sys.version_info[:2] >= (3, 13)
+            else "constraints/py310.txt"
+        )
+        result = subprocess.run(
+            [
+                sys.executable, "-m", "pip", "install",
+                "-r", "requirements.txt", "-c", constraint,
+            ],
+            check=False,
+            timeout=300,
+        )
+        if result.returncode:
+            raise RuntimeError("Telethon installation failed")
+        subprocess.run(
+            [sys.executable, "-m", "pip", "check"],
+            check=True,
+            timeout=60,
+        )
+        x = "\bDone. Installed Telethon."
     clear_screen()
     print(ULTROID)
     print(x)
@@ -122,8 +138,27 @@ def pyro_session():
 
         x = "\bFound an existing installation of Pyrogram...\nSuccessfully Imported.\n\n"
     except BaseException:
-        print("Installing Pyrogram...")
-        os.system("pip install pyrogram tgcrypto")
+        print("Installing the pinned Pyrogram session profile...")
+        constraint = (
+            "constraints/py313.txt"
+            if sys.version_info[:2] >= (3, 13)
+            else "constraints/py310.txt"
+        )
+        result = subprocess.run(
+            [
+                sys.executable, "-m", "pip", "install",
+                "-r", "requirements/session.txt", "-c", constraint,
+            ],
+            check=False,
+            timeout=300,
+        )
+        if result.returncode:
+            raise RuntimeError("Pyrogram installation failed")
+        subprocess.run(
+            [sys.executable, "-m", "pip", "check"],
+            check=True,
+            timeout=60,
+        )
         x = "\bDone. Installed and imported Pyrogram."
         from pyrogram import Client
         

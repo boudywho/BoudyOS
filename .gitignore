@@ -19,6 +19,10 @@ dist/
 *.mp4
 *.tgs
 *.txt
+!constraints/
+!constraints/*.txt
+!requirements/
+!requirements/*.txt
 /*.jpg
 /*.png
 /*.mp4
@@ -62,6 +66,20 @@ bin-release/
 
 # temporary files
 *.raw
+*.age
+*.agekey
+*.identity
+runtime/
+.state/
+releases/
+backups/
+ops/*.conf
+ops/*-paths
+*.bak
+*.rollback
+.coverage
+htmlcov/
+.tox/
 
 # fly.io configs
 fly.toml

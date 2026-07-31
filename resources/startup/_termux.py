@@ -7,7 +7,9 @@
 # <https://www.github.com/TeamUltroid/Ultroid/blob/main/LICENSE/>.
 
 from datetime import datetime
-from os import path, system
+from os import path
+import subprocess
+import sys
 from time import sleep
 
 from colorama import Back, Fore, Style
@@ -15,18 +17,8 @@ from colorama import Back, Fore, Style
 
 # clear screen
 def clear():
-    system("clear")
+    print("\033[2J\033[H", end="")
 
-
-MANDATORY_REQS = [
-    "https://github.com/New-dev0/Telethon/archive/Cartoon.zip",
-    "gitpython",
-    "enhancer",
-    "telegraph",
-    "requests",
-    "python-decouple",
-    "aiohttp",
-]
 
 OPT_PACKAGES = {
     "bs4": "Used for site-scrapping (used in commands like - .gadget and many more)",
@@ -125,13 +117,12 @@ def ask_process_apt_install():
             print(f"* Do you want to install '{apt}'? [Y/N] ")
             if yes_no_apt():
                 print(f"Installing {apt}...")
-                system(f"apt install {apt} -y")
+                subprocess.run(["apt", "install", apt, "-y"], check=True)
             else:
                 print(f"- Discarded {apt}.\n")
     elif strm == "i":
-        names = " ".join(APT_PACKAGES)
         print("Installing all apt-packages...")
-        system(f"apt install {names} -y")
+        subprocess.run(["apt", "install", *APT_PACKAGES, "-y"], check=True)
     elif strm != "s":
         print("Invalid Input\n* Enter Again...")
         ask_process_apt_install()
@@ -148,14 +139,12 @@ def ask_and_wait_opt():
                 f"* {Fore.YELLOW}Do you want to install '{opt}'? [Y/N]\n- {OPT_PACKAGES[opt]}"
             )
             if yes_no_apt():
-                print(f"Installing {opt}...")
-                system(f"pip install {opt}")
+                print(f"{opt} is supplied by the tested media profile.")
             else:
                 print(f"{Fore.YELLOW}- Discarded {opt}.\n")
     elif strm == "i":
-        names = " ".join(OPT_PACKAGES.keys())
         print(f"{Fore.YELLOW}Installing all packages...")
-        system(f"pip install {names}")
+        print("All listed packages are supplied by the tested media profile.")
     elif strm != "s":
         print("Invalid Input\n* Enter Again...")
         ask_and_wait_opt()
@@ -207,8 +196,24 @@ ask_process_info_text()
 clear()
 
 print(with_header("Installing Mandatory requirements..."))
-all_ = " ".join(MANDATORY_REQS)
-system(f"pip install {all_}")
+constraint = (
+    "constraints/py313.txt"
+    if sys.version_info[:2] >= (3, 13)
+    else "constraints/py310.txt"
+)
+subprocess.run(
+    [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        "requirements/media.txt",
+        "-c",
+        constraint,
+    ],
+    check=True,
+)
 
 clear()
 print(
@@ -241,8 +246,7 @@ print(f"\n{Fore.RED}#EXTRA Features...\n")
 print(f"{Fore.YELLOW}* Enable colored BoudyOS logs? [Y/N] ")
 inp = input("").strip().lower()
 if inp in ["yes", "y"]:
-    print(f"{Fore.GREEN}*Spoking the Magical Mantras*")
-    system("pip install coloredlogs")
+    print(f"{Fore.GREEN}Colored logs are used when the reviewed dependency is present.")
 else:
     print("Skipped!")
 
@@ -261,4 +265,4 @@ print(
 sleep(0.5)
 print("\nMade with ❤️ by @TeamUltroid...")
 
-system("pip3 uninstall -q colorama -y")
+subprocess.run([sys.executable, "-m", "pip", "check"], check=True)

@@ -12,6 +12,8 @@ __doc__ = get_help("help_calculator")
 
 import re
 
+from pyUltroid.security.expressions import ExpressionError, evaluate_arithmetic
+
 from . import Button, asst, callback, get_string, in_pattern, udB, ultroid_cmd
 
 CALC = {}
@@ -105,13 +107,17 @@ async def _(e):
         if get:
             if get.endswith(("*", ".", "/", "-", "+")):
                 get = get[:-1]
-            out = eval(get)
             try:
+                out = evaluate_arithmetic(get)
                 num = float(out)
-                await e.answer(f"Answer : {num}", cache_time=0, alert=True)
-            except BaseException:
+                return await e.answer(
+                    f"Answer : {num}", cache_time=0, alert=True
+                )
+            except (ExpressionError, ArithmeticError, ValueError):
                 CALC.pop(user)
-                await e.answer(get_string("sf_8"), cache_time=0, alert=True)
+                return await e.answer(
+                    get_string("sf_8"), cache_time=0, alert=True
+                )
         await e.answer("None")
     else:
         if CALC.get(user):

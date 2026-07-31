@@ -11,8 +11,15 @@ __doc__ = get_help("help_converter")
 
 import os
 import time
+from pathlib import Path
 
 from . import LOGS
+from pyUltroid.security.paths import (
+    UnsafePathError,
+    atomic_copy_file,
+    resolve_under,
+    safe_move,
+)
 
 try:
     import cv2
@@ -53,10 +60,18 @@ async def _(e):
         dl = await r.download_media(thumb=-1)
     else:
         return await e.eor("`Reply to Photo or media with thumb...`")
-    nn = uf(dl)
-    os.remove(dl)
-    udB.set_key("CUSTOM_THUMBNAIL", str(nn))
-    await bash(f"wget {nn} -O resources/extras/ultroid.jpg")
+    destination = Path("resources/downloads/ultroid-custom.jpg")
+    try:
+        atomic_copy_file(dl, destination)
+        nn = uf(str(destination))
+    except (OSError, UnsafePathError):
+        return await e.eor("`Thumbnail could not be persisted safely.`")
+    finally:
+        if Path(dl) != destination:
+            Path(dl).unlink(missing_ok=True)
+    if not isinstance(nn, str) or not nn.startswith("https://"):
+        return await e.eor("`Thumbnail upload failed; the prior setting was kept.`")
+    udB.set_key("CUSTOM_THUMBNAIL", nn)
     await e.eor(get_string("cvt_6").format(nn), link_preview=False)
 
 
@@ -86,11 +101,17 @@ async def imak(event):
             file = image.name
         else:
             file = await event.client.download_media(reply.media)
-    if os.path.exists(inp):
-        os.remove(inp)
-    await bash(f'mv """{file}""" """{inp}"""')
-    if not os.path.exists(inp) or os.path.exists(inp) and not os.path.getsize(inp):
-        os.rename(file, inp)
+    try:
+        destination = resolve_under(Path.cwd(), inp)
+    except UnsafePathError:
+        return await event.eor(
+            "`The requested filename escapes the runtime workspace.`"
+        )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        destination.unlink()
+    safe_move(file, destination)
+    inp = str(destination)
     k = time.time()
     n_file, _ = await event.client.fast_uploader(
         inp, show_progress=True, event=event, message="Uploading...", to_delete=True

@@ -9,6 +9,9 @@
 # Standalone file for facilitating local deploys.
 
 import os
+import shutil
+import subprocess
+import sys
 
 a = r"""
   _    _ _ _             _     _
@@ -28,8 +31,14 @@ def start():
     print(f"{a}\n\n")
     print("Welcome to BoudyOS. Let's get your workspace ready.\n")
     print("Cloning the repository...\n\n")
-    os.system("rm -rf BoudyOS")
-    os.system("git clone https://github.com/boudywho/BoudyOS")
+    target = os.path.abspath("BoudyOS")
+    if os.path.isdir(target):
+        shutil.rmtree(target)
+    subprocess.run(
+        ["git", "clone", "https://github.com/boudywho/BoudyOS.git", target],
+        check=True,
+        timeout=300,
+    )
     print("\n\nDone")
     os.chdir("BoudyOS")
     clear_screen()
@@ -58,6 +67,8 @@ def start():
         "REDIS_PASSWORD",
     ]
     all_done = "# BoudyOS environment variables.\n# Do not delete this file.\n\n"
+    all_done += "PLUGIN_PROFILES=core,media\n"
+    all_done += "PLUGIN_PROFILE_POLICY=new-safe-v1\n"
     for i in varrs:
         all_done += do_input(i)
     clear_screen()
@@ -75,22 +86,40 @@ def start():
     clear_screen()
     print("\nCongrats. All done!\nTime to start the bot!")
     print("\nInstalling requirements... This might take a while...")
-    os.system("pip3 install --no-cache-dir -r requirements.txt")
-    os.system("pip3 install -r requirements.txt --break-system-packages")
+    constraint = (
+        "constraints/py313.txt"
+        if sys.version_info[:2] >= (3, 13)
+        else "constraints/py310.txt"
+    )
+    subprocess.run(
+        [
+            sys.executable, "-m", "pip", "install", "--no-cache-dir",
+            "-r", "requirements/media.txt", "-c", constraint,
+        ],
+        check=True,
+        timeout=900,
+    )
     ask = input(
         "Enter 'yes/y' to Install other requirements, required for local deployment."
     )
     if ask.lower().startswith("y"):
         print("Started Installing...")
-        os.system(
-            "pip3 install --no-cache-dir -r resources/startup/optional-requirements.txt"
+        subprocess.run(
+            [
+                sys.executable, "-m", "pip", "install", "--no-cache-dir",
+                "-r", "resources/startup/optional-requirements.txt",
+                "-c", constraint,
+            ],
+            check=True,
+            timeout=1800,
         )
     else:
         print("Skipped!")
+    subprocess.run([sys.executable, "-m", "pip", "check"], check=True)
     clear_screen()
     print(a)
     print("\nStarting BoudyOS...")
-    os.system("sh startup")
+    subprocess.run(["bash", "startup"], check=True)
 
 
 def do_input(var):
@@ -100,7 +129,7 @@ def do_input(var):
 
 def clear_screen():
     # clear screen
-    _ = os.system("clear") if os.name == "posix" else os.system("cls")
+    print("\033[2J\033[H", end="")
 
 
 def check_for_py():
@@ -129,7 +158,9 @@ def check_for_py():
 def gen_session():
     print("\nProcessing...")
     # https://github.com/TeamUltroid/Ultroid/main/resources/startup/locals.py#L35
-    os.system("python3 resources/session/ssgen.py")
+    subprocess.run(
+        [sys.executable, "resources/session/ssgen.py"], check=True
+    )
 
 
 start()

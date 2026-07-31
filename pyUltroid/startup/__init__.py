@@ -18,6 +18,12 @@ if run_as_module:
 else:
     Var = None
 
+# Keep startup modules importable for clean-environment and packaging checks.
+# Full runtime configuration below replaces levels/handlers when launched with
+# ``python -m pyUltroid``.
+LOGS = getLogger("pyUltroid")
+TelethonLogger = getLogger("Telethon")
+
 
 def where_hosted():
     if os.getenv("DYNO"):
@@ -53,7 +59,6 @@ if run_as_module:
 
     HOSTED_ON = where_hosted()
     LOGS = getLogger("pyUltLogs")
-    TelethonLogger = getLogger("Telethon")
     TelethonLogger.setLevel(INFO)
 
     _, v, __ = platform.python_version_tuple()

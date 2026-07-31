@@ -1,0 +1,17 @@
+# Install root:root 0600 as /etc/boudyos/backup.conf.
+# Public age recipient only; keep the private identity offline.
+AGE_RECIPIENT=
+AGE_IDENTITY_FILE=/root/.config/age/boudyos-restore.agekey
+# Provision at least 32 random bytes before enabling the timer; keep root:root
+# 0600 and separate from both the age identity and backup directory.
+HMAC_KEY_FILE=/etc/boudyos/backup-auth.key
+BACKUP_DIR=/var/backups/boudyos
+ALLOWLIST_FILE=/etc/boudyos/backup-paths
+REDIS_ENV_FILE=/etc/boudyos/redis.env
+BACKUP_MODE=managed
+BOUDYOS_OPS_HELPER=/usr/local/lib/boudyos/boudyos_ops.py
+BOUDYOS_RUNTIME_ROOT=/var/lib/boudyos/workspaces
+BOUDYOS_RUNTIME_LINK=/var/lib/boudyos/current
+QUIESCE_SERVICE=boudyos.service
+BOUDYOS_STATUS_GROUP=boudyos
+BOUDYOS_STATUS_DIR=/var/lib/boudyos/status

@@ -10,6 +10,7 @@ from telethon.errors import (
     ChatSendInlineForbiddenError,
     ChatSendMediaForbiddenError,
 )
+from pyUltroid.paths import source_resource
 
 from . import LOG_CHANNEL, LOGS, Button, asst, eor, get_string, ultroid_cmd
 
@@ -61,7 +62,7 @@ async def useUltroid(rs):
     msg = await asst.send_message(
         LOG_CHANNEL,
         ULTSTRING,
-        file="resources/extras/boudyos_avatar.jpg",
+        file=str(source_resource("extras", "boudyos_avatar.jpg")),
         buttons=button,
     )
     if not (rs.chat_id == LOG_CHANNEL and rs.client._bot):

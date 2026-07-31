@@ -25,6 +25,7 @@ except ImportError:
     Image = None
 from pyUltroid.fns.misc import unsplashsearch
 from pyUltroid.fns.tools import LogoHelper
+from pyUltroid.paths import source_resource
 
 from . import OWNER_ID, OWNER_NAME, download_file, get_string, mediainfo, ultroid_cmd
 
@@ -44,7 +45,7 @@ async def logo_gen(event):
                 or (".ttf" in temp.file.name)
                 or (".otf" in temp.file.name)
             ):
-                font_ = await temp.download_media("resources/fonts/")
+                font_ = await temp.download_media("resources/downloads/")
             elif "pic" in mediainfo(temp.media):
                 bg_ = await temp.download_media()
     if not bg_:
@@ -72,7 +73,7 @@ async def logo_gen(event):
         bg_ = newimg
 
     if not font_:
-        fpath_ = glob.glob("resources/fonts/*")
+        fpath_ = glob.glob(str(source_resource("fonts", "*")))
         font_ = random.choice(fpath_)
     if len(name) <= 8:
         strke = 10

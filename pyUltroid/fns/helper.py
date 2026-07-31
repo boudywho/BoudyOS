@@ -36,13 +36,6 @@ try:
 except ImportError:
     heroku3 = None
 
-try:
-    from git import Repo
-    from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
-except ImportError:
-    Repo = None
-
-
 import asyncio
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
@@ -149,9 +142,24 @@ def un_plug(shortname):
 if run_as_module:
 
     async def safeinstall(event):
+        from pathlib import Path
+
         from .. import HNDLR
+        from ..security.addons import AddonInstallError, atomic_install
+        from ..security.paths import UnsafePathError, safe_basename
+        from ..security.settings import event_is_owner, setting_enabled
         from ..startup.utils import load_addons
 
+        from .. import udB, ultroid_bot
+
+        if not event_is_owner(event, udB, ultroid_bot):
+            return await eod(event, "`Add-on installation is owner-only.`")
+        if not setting_enabled(udB, "ALLOW_UNTRUSTED_PLUGINS"):
+            return await eod(
+                event,
+                "`Attachment installation is disabled by default. Review "
+                "SECURITY.md before enabling ALLOW_UNTRUSTED_PLUGINS.`",
+            )
         if not event.reply_to:
             return await eod(
                 event, f"Please use `{HNDLR}install` as reply to a .py file."
@@ -165,25 +173,48 @@ if run_as_module:
             and reply.file.name.endswith(".py")
         ):
             return await eod(ok, "`Please reply to any python plugin`")
-        plug = reply.file.name.replace(".py", "")
+        try:
+            sm = safe_basename(
+                reply.file.name.replace("_", "-").replace("|", "-"), ".py"
+            )
+        except UnsafePathError:
+            return await eod(ok, "`Unsafe add-on filename.`")
+        plug = sm[:-3]
         if plug in list(LOADED):
             return await eod(ok, f"Plugin `{plug}` is already installed.")
-        sm = reply.file.name.replace("_", "-").replace("|", "-")
-        dl = await reply.download_media(f"addons/{sm}")
-        if event.text[9:] != "f":
-            read = open(dl).read()
-            for dan in KEEP_SAFE().All:
-                if re.search(dan, read):
-                    os.remove(dl)
-                    return await ok.edit(
-                        f"**Installation Aborted.**\n**Reason:** Occurance of `{dan}` in `{reply.file.name}`.\n\nIf you trust the provider and/or know what you're doing, use `{HNDLR}install f` to force install.",
-                    )
+        Path("addons").mkdir(mode=0o700, exist_ok=True)
+        stage = Path("addons") / f".upload-{time.time_ns()}.tmp"
+        destination = Path("addons") / sm
+        prior = destination.read_bytes() if destination.exists() else None
         try:
-            load_addons(dl)  # dl.split("/")[-1].replace(".py", ""))
+            dl = Path(await reply.download_media(str(stage)))
+            content = dl.read_bytes()
+            read = content.decode("utf-8", "strict")
+            if event.text[9:] != "f":
+                for dan in KEEP_SAFE().All:
+                    if re.search(dan, read):
+                        return await ok.edit(
+                            f"**Installation Aborted.**\n**Reason:** matched "
+                            f"`{dan}` in `{reply.file.name}`.\n\n"
+                            "This scan is only a warning, not a safety guarantee. "
+                            f"If you trust the provider, use `{HNDLR}install f`."
+                        )
+            installed = atomic_install(content, sm, Path("addons"))
+            load_addons(str(installed))
+        except (AddonInstallError, UnicodeDecodeError):
+            return await eor(ok, "`Add-on validation failed.`", time=30)
         except BaseException:
-            os.remove(dl)
-            return await eor(ok, f"**ERROR**\n\n`{format_exc()}`", time=30)
-        plug = sm.replace(".py", "")
+            if prior is None:
+                destination.unlink(missing_ok=True)
+            else:
+                atomic_install(prior, sm, Path("addons"))
+            return await eor(
+                ok,
+                "`Add-on failed to load; the previous local version was restored.`",
+                time=30,
+            )
+        finally:
+            stage.unlink(missing_ok=True)
         if plug in HELP:
             output = "**Plugin** - `{}`\n".format(plug)
             for i in HELP[plug]:
@@ -243,16 +274,39 @@ if run_as_module:
         )
 
     async def updateme_requirements():
-        """Update requirements.."""
-        await bash(
-            f"{sys.executable} -m pip install --no-cache-dir -r requirements.txt"
+        """Compatibility helper for explicit dependency maintenance."""
+        from ..security.subprocess import run_exec
+
+        constraint = (
+            "constraints/py313.txt"
+            if sys.version_info[:2] >= (3, 13)
+            else "constraints/py310.txt"
+        )
+        result = await run_exec(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--no-cache-dir",
+                "-r",
+                "requirements/media.txt",
+                "-c",
+                constraint,
+            ],
+            timeout=900,
+        )
+        if not result.ok:
+            return result
+        return await run_exec(
+            [sys.executable, "-m", "pip", "check"], timeout=120
         )
 
     @run_async
     def gen_chlog(repo, diff):
         """Generate Changelogs..."""
-        UPSTREAM_REPO_URL = (
-            Repo().remotes[0].config_reader.get("url").replace(".git", "")
+        UPSTREAM_REPO_URL = repo.remotes[0].config_reader.get("url").replace(
+            ".git", ""
         )
         ac_br = repo.active_branch.name
         ch_log = tldr_log = ""
@@ -272,15 +326,14 @@ if run_as_module:
 
 async def bash(cmd, run_code=0):
     """
-    run any command in subprocess and get output or error."""
-    process = await asyncio.create_subprocess_shell(
-        cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await process.communicate()
-    err = stderr.decode().strip() or None
-    out = stdout.decode().strip()
+    Legacy owner shell compatibility. New runtime code must use argv run_exec."""
+    from ..security.subprocess import run_shell_compat
+
+    result = await run_shell_compat(cmd, timeout=300)
+    if result.timed_out:
+        return "", "COMMAND_TIMED_OUT"
+    err = result.stderr or None
+    out = result.stdout
     if not run_code and err:
         if match := re.match(r"/bin/sh: (.*): ?(\w+): not found", err):
             return out, f"{match.group(2).upper()}_NOT_FOUND"
@@ -292,36 +345,13 @@ async def bash(cmd, run_code=0):
 
 
 async def updater():
-    from .. import LOGS
+    """Compatibility shim returning whether approved BoudyOS updates exist."""
+    from ..security.status import write_update_status
+    from ..security.updater import check_for_update
 
-    try:
-        off_repo = Repo().remotes[0].config_reader.get("url").replace(".git", "")
-    except Exception as er:
-        LOGS.exception(er)
-        return
-    try:
-        repo = Repo()
-    except NoSuchPathError as error:
-        LOGS.info(f"`directory {error} is not found`")
-        Repo().__del__()
-        return
-    except GitCommandError as error:
-        LOGS.info(f"`Early failure! {error}`")
-        Repo().__del__()
-        return
-    except InvalidGitRepositoryError:
-        repo = Repo.init()
-        origin = repo.create_remote("upstream", off_repo)
-        origin.fetch()
-        repo.create_head("main", origin.refs.main)
-        repo.heads.main.set_tracking_branch(origin.refs.main)
-        repo.heads.main.checkout(True)
-    ac_br = repo.active_branch.name
-    repo.create_remote("upstream", off_repo) if "upstream" not in repo.remotes else None
-    ups_rem = repo.remote("upstream")
-    ups_rem.fetch(ac_br)
-    changelog, tl_chnglog = await gen_chlog(repo, f"HEAD..upstream/{ac_br}")
-    return bool(changelog)
+    state = await check_for_update()
+    write_update_status(state)
+    return state.update_available
 
 
 # ----------------Fast Upload/Download----------------
@@ -348,7 +378,13 @@ async def uploader(file, name, taime, event, msg):
 
 
 async def downloader(filename, file, event, taime, msg):
-    with open(filename, "wb") as fk:
+    from pathlib import Path
+
+    from ..security.paths import resolve_under
+
+    target = resolve_under(Path.cwd(), filename)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("wb") as fk:
         result = await downloadable(
             client=event.client,
             location=file,
@@ -383,6 +419,8 @@ async def async_searcher(
     **kwargs,
 ):
     if aiohttp_client:
+        if "timeout" not in kwargs and aiohttp_timeout:
+            kwargs["timeout"] = aiohttp_timeout(total=30)
         async with aiohttp_client(headers=headers) as client:
             method = client.head if head else (client.post if post else client.get)
             data = await method(url, *args, **kwargs)
@@ -417,36 +455,59 @@ async def download_file(link, name, validate=False):
     """for files, without progress callback with aiohttp"""
 
     async def _download(content):
+        from pathlib import Path
+
+        from ..security.paths import resolve_under
+
         if validate and "application/json" in content.headers.get("Content-Type"):
             return None, await content.json()
-        with open(name, "wb") as file:
-            file.write(await content.read())
-        return name, ""
+        target = resolve_under(Path.cwd(), name)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        size = 0
+        with target.open("wb") as file:
+            async for chunk in content.content.iter_chunked(64 * 1024):
+                size += len(chunk)
+                if size > 50 * 1024 * 1024:
+                    raise ValueError("download exceeds the 50 MiB limit")
+                file.write(chunk)
+        return str(target), ""
 
     return await async_searcher(link, evaluate=_download)
 
 
 async def fast_download(download_url, filename=None, progress_callback=None):
     if not aiohttp_client:
-        return await download_file(download_url, filename)[0], None
-    _timeout = aiohttp_timeout(total=None) if aiohttp_timeout else None
+        filename = filename or unquote(download_url.rpartition("/")[-1])
+        downloaded, _ = await download_file(download_url, filename)
+        return downloaded, None
+    from pathlib import Path
+
+    from ..security.paths import resolve_under
+
+    _timeout = aiohttp_timeout(total=300) if aiohttp_timeout else None
     async with aiohttp_client(timeout=_timeout) as session:
         async with session.get(download_url) as response:
             if not filename:
                 filename = unquote(download_url.rpartition("/")[-1])
+            target = resolve_under(Path.cwd(), filename)
+            target.parent.mkdir(parents=True, exist_ok=True)
             total_size = int(response.headers.get("content-length", 0)) or None
+            if total_size and total_size > 2 * 1024 * 1024 * 1024:
+                raise ValueError("download exceeds the 2 GiB limit")
             downloaded_size = 0
             start_time = time.time()
-            with open(filename, "wb") as f:
+            with target.open("wb") as f:
                 async for chunk in response.content.iter_chunked(1024):
                     if chunk:
                         f.write(chunk)
                         downloaded_size += len(chunk)
+                        if downloaded_size > 2 * 1024 * 1024 * 1024:
+                            raise ValueError("download exceeds the 2 GiB limit")
                     if progress_callback and total_size:
                         await _maybe_await(
                             progress_callback(downloaded_size, total_size)
                         )
-            return filename, time.time() - start_time
+            return str(target), time.time() - start_time
 
 
 # --------------------------Media Funcs-------------------------------- #

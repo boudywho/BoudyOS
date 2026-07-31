@@ -1,0 +1,12 @@
+[Unit]
+Description=Frequent BoudyOS health probe
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=5m
+RandomizedDelaySec=45s
+Persistent=true
+Unit=boudyos-health.service
+
+[Install]
+WantedBy=timers.target

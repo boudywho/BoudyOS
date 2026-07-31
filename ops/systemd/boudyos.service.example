@@ -1,0 +1,43 @@
+[Unit]
+Description=BoudyOS Telegram workspace
+After=network-online.target redis-server.service boudyos-paths.service
+Wants=network-online.target
+Requires=boudyos-paths.service
+
+[Service]
+Type=simple
+User=boudyos
+Group=boudyos
+WorkingDirectory=/var/lib/boudyos/current/work
+EnvironmentFile=/etc/boudyos/runtime.env
+Environment=PYTHONPATH=/var/lib/boudyos/current/source
+Environment=PYTHONSAFEPATH=1
+Environment=BOUDYOS_READY_FILE=/run/boudyos/ready
+Environment=BOUDYOS_READY_INTERVAL_SECONDS=15
+Environment=BOUDYOS_STATUS_DIR=/var/lib/boudyos/status
+Environment=BOUDYOS_APP_STATUS_DIR=/var/lib/boudyos/app-status
+Environment=BOUDYOS_RELEASE_METADATA=/var/lib/boudyos/status/release.json
+ExecStart=/var/lib/boudyos/current/source/.venv/bin/python -P -m pyUltroid
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+RuntimeDirectory=boudyos
+RuntimeDirectoryMode=0750
+StateDirectory=boudyos/app-status
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadOnlyPaths=/opt/boudyos/releases /var/lib/boudyos/current /var/lib/boudyos/workspaces /var/lib/boudyos/status
+ReadWritePaths=/run/boudyos -/var/lib/boudyos/current/work /var/lib/boudyos/app-status
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

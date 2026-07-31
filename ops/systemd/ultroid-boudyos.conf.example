@@ -1,0 +1,27 @@
+# Install as /etc/systemd/system/ultroid.service.d/boudyos.conf only after
+# ops/boudyos-migrate-ultroid prepare and a successful BoudyOS preflight.
+[Unit]
+After=boudyos-paths.service
+Requires=boudyos-paths.service
+
+[Service]
+User=ultroid
+Group=ultroid
+WorkingDirectory=/var/lib/boudyos/current/work
+EnvironmentFile=
+EnvironmentFile=/etc/boudyos/runtime.env
+Environment=PYTHONPATH=/var/lib/boudyos/current/source
+Environment=PYTHONSAFEPATH=1
+Environment=BOUDYOS_READY_FILE=/run/boudyos/ready
+Environment=BOUDYOS_READY_INTERVAL_SECONDS=15
+Environment=BOUDYOS_STATUS_DIR=/var/lib/boudyos/status
+Environment=BOUDYOS_APP_STATUS_DIR=/var/lib/boudyos/app-status
+Environment=BOUDYOS_RELEASE_METADATA=/var/lib/boudyos/status/release.json
+ExecStart=
+ExecStart=/var/lib/boudyos/current/source/.venv/bin/python -P -m pyUltroid
+RuntimeDirectory=boudyos
+RuntimeDirectoryMode=0750
+StateDirectory=boudyos/app-status
+StateDirectoryMode=0700
+ReadWritePaths=/run/boudyos -/var/lib/boudyos/current/work /var/lib/boudyos/app-status
+ReadOnlyPaths=/opt/boudyos/releases /var/lib/boudyos/current /var/lib/boudyos/workspaces /var/lib/boudyos/status

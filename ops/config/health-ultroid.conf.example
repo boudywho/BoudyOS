@@ -1,0 +1,18 @@
+# Exact legacy-layout health example. Install root:root 0600 as
+# /etc/boudyos/health.conf. Alert values are intentionally empty.
+SERVICE=ultroid.service
+READY_FILE=/run/boudyos/ready
+READY_MAX_AGE_SECONDS=45
+BOUDYOS_STATUS_DIR=/var/lib/boudyos/status
+BOUDYOS_STATUS_GROUP=ultroid
+RUNTIME_USER=ultroid
+RUNTIME_GROUP=ultroid
+LAYOUT_MODE=legacy
+LEGACY_SOURCE=/opt/ultroid
+REDIS_ENV_FILE=/etc/boudyos/redis.env
+DISK_PATH=/opt/boudyos
+BACKUP_MAX_AGE_SECONDS=129600
+UPDATE_MAX_AGE_SECONDS=172800
+ALERT_COOLDOWN_SECONDS=3600
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+[[ $# -eq 1 ]] || {
+    echo "Usage: $0 <encrypted-backup.tar.age>" >&2
+    exit 2
+}
+readonly CONFIG_FILE="${BOUDYOS_BACKUP_CONFIG:-/etc/boudyos/backup.conf}"
+[[ -r "$CONFIG_FILE" ]] || {
+    echo "Backup configuration is not readable." >&2
+    exit 1
+}
+# shellcheck source=/dev/null
+source "$CONFIG_FILE"
+: "${AGE_IDENTITY_FILE:?AGE_IDENTITY_FILE must be configured}"
+: "${HMAC_KEY_FILE:?HMAC_KEY_FILE must be configured}"
+readonly OPS_HELPER="${BOUDYOS_OPS_HELPER:-/usr/local/lib/boudyos/boudyos_ops.py}"
+
+backup="$(readlink -f "$1")"
+[[ -f "$backup" && "$backup" == *.tar.age ]] || {
+    echo "Encrypted backup file is invalid." >&2
+    exit 1
+}
+signature="$backup.hmac"
+[[ -f "$signature" ]] || {
+    echo "Backup authentication signature is missing." >&2
+    exit 1
+}
+# Authenticate the ciphertext before age sees any attacker-controlled bytes.
+python3 "$OPS_HELPER" hmac-verify "$backup" "$HMAC_KEY_FILE" "$signature" || {
+    echo "Backup authentication failed." >&2
+    exit 1
+}
+work="$(mktemp -d /tmp/boudyos-restore-verify.XXXXXX)"
+trap 'rm -rf --one-file-system -- "$work"' EXIT
+age --decrypt --identity "$AGE_IDENTITY_FILE" --output "$work/archive.tar" "$backup"
+python3 "$OPS_HELPER" extract "$work/archive.tar" "$work/restored"
+python3 "$OPS_HELPER" verify "$work/restored" "$work/restored/manifest.json"
+printf 'Backup verification passed; production was not modified.\n'

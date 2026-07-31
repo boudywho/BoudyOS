@@ -14,11 +14,15 @@ import sys
 import traceback
 from io import BytesIO, StringIO
 from os import remove
+from pathlib import Path
 from pprint import pprint
 
 from telethon.utils import get_display_name
 
 from pyUltroid import _ignore_eval
+from pyUltroid.security.settings import setting_enabled
+from pyUltroid.security.paths import private_workspace
+from pyUltroid.security.subprocess import run_exec
 
 from . import *
 
@@ -45,22 +49,31 @@ fn = functions
 )
 async def _(e):
     xx = await e.eor(get_string("com_1"))
-    x, y = await bash("neofetch|sed 's/\x1B\\[[0-9;\\?]*[a-zA-Z]//g' >> neo.txt")
-    if y and y.endswith("NOT_FOUND"):
-        return await xx.edit(f"Error: `{y}`")
-    with open("neo.txt", "r", encoding="utf-8") as neo:
-        p = (neo.read()).replace("\n\n", "")
+    result = await run_exec(["neofetch", "--stdout"], timeout=30)
+    if not result.ok:
+        return await xx.edit("`neofetch is unavailable or failed.`")
+    p = result.stdout.replace("\n\n", "")
     haa = await Carbon(code=p, file_name="neofetch", backgroundColor=choice(ATRA_COL))
     if isinstance(haa, dict):
         await xx.edit(f"`{haa}`")
     else:
         await e.reply(file=haa)
         await xx.delete()
-    remove("neo.txt")
 
 
 @ultroid_cmd(pattern="bash", fullsudo=True, only_devs=True)
 async def _(event):
+    owner_id = udB.get_key("OWNER_ID") or getattr(ultroid_bot, "uid", None)
+    if not event.out and event.sender_id != owner_id:
+        return await event.eor(
+            "`Owner shell execution is not available to sudo users.`", time=10
+        )
+    if not setting_enabled(udB, "ALLOW_DANGEROUS_DEV_EXEC"):
+        return await event.eor(
+            "`Owner shell execution is disabled. Set "
+            "ALLOW_DANGEROUS_DEV_EXEC=true only after reviewing SECURITY.md.`",
+            time=10,
+        )
     carb, rayso, yamlf = None, None, False
     try:
         cmd = event.text.split(" ", maxsplit=1)[1]
@@ -196,6 +209,18 @@ def _parse_eval(value=None):
 
 @ultroid_cmd(pattern="eval", fullsudo=True, only_devs=True)
 async def _(event):
+    owner_id = udB.get_key("OWNER_ID") or getattr(ultroid_bot, "uid", None)
+    if not event.out and event.sender_id != owner_id:
+        return await event.eor(
+            "`Owner-only administrative Python execution is not available to sudo users.`",
+            time=10,
+        )
+    if not setting_enabled(udB, "ALLOW_DANGEROUS_DEV_EXEC"):
+        return await event.eor(
+            "`Dangerous owner Python execution is disabled. Set "
+            "ALLOW_DANGEROUS_DEV_EXEC=true only after reviewing SECURITY.md.`",
+            time=15,
+        )
     try:
         cmd = event.text.split(maxsplit=1)[1]
     except IndexError:
@@ -363,6 +388,18 @@ int main(){
 
 @ultroid_cmd(pattern="cpp", only_devs=True)
 async def doie(e):
+    owner_id = udB.get_key("OWNER_ID") or getattr(ultroid_bot, "uid", None)
+    if not e.out and e.sender_id != owner_id:
+        return await e.eor(
+            "`Owner-only native code execution is not available to sudo users.`",
+            time=10,
+        )
+    if not setting_enabled(udB, "ALLOW_DANGEROUS_DEV_EXEC"):
+        return await e.eor(
+            "`Native code execution is disabled. Set "
+            "ALLOW_DANGEROUS_DEV_EXEC=true only after reviewing SECURITY.md.`",
+            time=15,
+        )
     match = e.text.split(" ", maxsplit=1)
     try:
         match = match[1]
@@ -372,29 +409,29 @@ async def doie(e):
     if "main(" not in match:
         new_m = "".join(" " * 4 + i + "\n" for i in match.split("\n"))
         match = DUMMY_CPP.replace("!code", new_m)
-    open("cpp-ultroid.cpp", "w").write(match)
-    m = await bash("g++ -o CppUltroid cpp-ultroid.cpp")
-    o_cpp = f"• **Eval-Cpp**\n`{match}`"
-    if m[1]:
-        o_cpp += f"\n\n**• Error :**\n`{m[1]}`"
+    with private_workspace(Path.cwd(), ".boudyos-cpp-") as workspace:
+        (workspace / "source.cpp").write_text(match, "utf-8")
+        result = await run_exec(
+            ["g++", "-o", "program", "source.cpp"],
+            cwd=workspace,
+            timeout=120,
+        )
+        o_cpp = f"• **Eval-Cpp**\n`{match}`"
+        if not result.ok:
+            o_cpp += f"\n\n**• Error :**\n`{result.stderr}`"
+            if len(o_cpp) > 3000:
+                with BytesIO(str.encode(o_cpp)) as out_file:
+                    out_file.name = "error.txt"
+                    return await msg.reply(f"`{match}`", file=out_file)
+            return await eor(msg, o_cpp)
+        result = await run_exec(["./program"], cwd=workspace, timeout=30)
+        if result.stdout:
+            o_cpp += f"\n\n**• Output :**\n`{result.stdout}`"
+        if result.stderr:
+            o_cpp += f"\n\n**• Error :**\n`{result.stderr}`"
         if len(o_cpp) > 3000:
-            os.remove("cpp-ultroid.cpp")
-            if os.path.exists("CppUltroid"):
-                os.remove("CppUltroid")
             with BytesIO(str.encode(o_cpp)) as out_file:
-                out_file.name = "error.txt"
-                return await msg.reply(f"`{match}`", file=out_file)
-        return await eor(msg, o_cpp)
-    m = await bash("./CppUltroid")
-    if m[0] != "":
-        o_cpp += f"\n\n**• Output :**\n`{m[0]}`"
-    if m[1]:
-        o_cpp += f"\n\n**• Error :**\n`{m[1]}`"
-    if len(o_cpp) > 3000:
-        with BytesIO(str.encode(o_cpp)) as out_file:
-            out_file.name = "eval.txt"
-            await msg.reply(f"`{match}`", file=out_file)
-    else:
-        await eor(msg, o_cpp)
-    os.remove("CppUltroid")
-    os.remove("cpp-ultroid.cpp")
+                out_file.name = "eval.txt"
+                await msg.reply(f"`{match}`", file=out_file)
+        else:
+            await eor(msg, o_cpp)

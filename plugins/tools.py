@@ -64,6 +64,8 @@ from telethon.tl.types import (
 )
 
 from pyUltroid.fns.tools import metadata, translate
+from pyUltroid.security.subprocess import run_exec
+from pyUltroid.security.paths import cli_path
 
 from . import (
     HNDLR,
@@ -195,9 +197,16 @@ async def _(e):
         thumb = "img.jpg"
         audio, _ = await e.client.fast_downloader(reply.document)
         await msg.edit("`Creating video note...`")
-        await bash(
-            f'ffmpeg -i "{thumb}" -i "{audio.name}" -preset ultrafast -c:a libmp3lame -ab 64 circle.mp4 -y'
+        result = await run_exec(
+            [
+                "ffmpeg", "-i", cli_path(thumb), "-i", cli_path(audio.name),
+                "-preset", "ultrafast",
+                "-c:a", "libmp3lame", "-ab", "64", "circle.mp4", "-y",
+            ],
+            timeout=300,
         )
+        if not result.ok:
+            return await msg.edit("`ffmpeg failed to create the video note.`")
         await msg.edit("`Uploading...`")
         data = await metadata("circle.mp4")
         file, _ = await e.client.fast_uploader("circle.mp4", to_delete=True)
@@ -468,4 +477,3 @@ async def webss(event):
         )
         os.remove(pic)
     await xx.delete()
-

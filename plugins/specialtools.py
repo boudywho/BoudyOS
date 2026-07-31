@@ -34,6 +34,7 @@
 import os
 import time
 from datetime import datetime as dt
+from pathlib import Path
 from random import choice
 
 import pytz, asyncio
@@ -42,6 +43,8 @@ from telethon.tl.types import DocumentAttributeVideo
 from requests import Session
 from cloudscraper import create_scraper
 from pyUltroid.fns.tools import get_google_images, metadata
+from pyUltroid.security.subprocess import run_exec
+from pyUltroid.security.paths import cli_path, private_workspace
 
 from . import (
     HNDLR,
@@ -59,7 +62,7 @@ from . import (
 )
 from .beautify import all_col
 
-File = []
+AudioFile = {}
 scraper = create_scraper()
 
 @ultroid_cmd(
@@ -82,7 +85,11 @@ async def daudtoid(e):
         f"Downloading {dl}...",
     )
 
-    File.append(file.name)
+    key = (e.chat_id, e.sender_id)
+    prior = AudioFile.get(key)
+    if prior and prior != file.name:
+        Path(prior).unlink(missing_ok=True)
+    AudioFile[key] = file.name
     await xxx.edit(get_string("spcltool_2"))
 
 
@@ -95,7 +102,9 @@ async def adaudroid(e):
     r = await e.get_reply_message()
     if not mediainfo(r.media).startswith("video"):
         return await eod(e, get_string("spcltool_3"))
-    if not (File and os.path.exists(File[0])):
+    key = (e.chat_id, e.sender_id)
+    audio = AudioFile.get(key)
+    if not (audio and os.path.isfile(audio) and not os.path.islink(audio)):
         return await e.edit(f"`First reply an audio with {HNDLR}addaudio`")
     xxx = await e.eor(get_string("com_1"))
     dl = r.file.name or "input.mp4"
@@ -109,33 +118,44 @@ async def adaudroid(e):
     )
 
     await xxx.edit(get_string("spcltool_5"))
-    await bash(
-        f'ffmpeg -i "{file.name}" -i "{File[0]}" -shortest -c:v copy -c:a aac -map 0:v:0 -map 1:a:0 output.mp4'
-    )
-    out = "output.mp4"
-    mmmm = await uploader(out, out, time.time(), xxx, f"Uploading {out}...")
-    data = await metadata(out)
-    width = data["width"]
-    height = data["height"]
-    duration = data["duration"]
-    attributes = [
-        DocumentAttributeVideo(
-            duration=duration, w=width, h=height, supports_streaming=True
-        )
-    ]
-    await e.client.send_file(
-        e.chat_id,
-        mmmm,
-        thumb=ULTConfig.thumb,
-        attributes=attributes,
-        force_document=False,
-        reply_to=e.reply_to_msg_id,
-    )
-    await xxx.delete()
-    os.remove(out)
-    os.remove(file.name)
-    File.clear()
-    os.remove(File[0])
+    try:
+        with private_workspace(Path.cwd(), ".boudyos-addaudio-") as workspace:
+            out = workspace / "output.mp4"
+            result = await run_exec(
+                [
+                    "ffmpeg", "-i", cli_path(file.name), "-i", cli_path(audio),
+                    "-shortest", "-c:v", "copy", "-c:a", "aac", "-map", "0:v:0",
+                    "-map", "1:a:0", cli_path(out),
+                ],
+                timeout=300,
+            )
+            if not result.ok:
+                return await xxx.edit("`ffmpeg failed to combine the media.`")
+            mmmm = await uploader(
+                str(out), out.name, time.time(), xxx, f"Uploading {out.name}..."
+            )
+            data = await metadata(out)
+            attributes = [
+                DocumentAttributeVideo(
+                    duration=data["duration"],
+                    w=data["width"],
+                    h=data["height"],
+                    supports_streaming=True,
+                )
+            ]
+            await e.client.send_file(
+                e.chat_id,
+                mmmm,
+                thumb=ULTConfig.thumb,
+                attributes=attributes,
+                force_document=False,
+                reply_to=e.reply_to_msg_id,
+            )
+            await xxx.delete()
+    finally:
+        Path(file.name).unlink(missing_ok=True)
+        Path(audio).unlink(missing_ok=True)
+        AudioFile.pop(key, None)
 
 
 @ultroid_cmd(

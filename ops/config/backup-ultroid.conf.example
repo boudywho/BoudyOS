@@ -1,0 +1,14 @@
+# Exact legacy-layout backup example. Install root:root 0600 as
+# /etc/boudyos/backup.conf and provision the recipient/key values separately.
+AGE_RECIPIENT=
+AGE_IDENTITY_FILE=/root/.config/age/boudyos-restore.agekey
+HMAC_KEY_FILE=/etc/boudyos/backup-auth.key
+BACKUP_DIR=/var/backups/boudyos
+ALLOWLIST_FILE=/etc/boudyos/backup-paths-ultroid
+REDIS_ENV_FILE=/etc/boudyos/redis.env
+BACKUP_MODE=legacy
+LEGACY_SOURCE=/opt/ultroid
+BOUDYOS_OPS_HELPER=/usr/local/lib/boudyos/boudyos_ops.py
+QUIESCE_SERVICE=ultroid.service
+BOUDYOS_STATUS_GROUP=ultroid
+BOUDYOS_STATUS_DIR=/var/lib/boudyos/status

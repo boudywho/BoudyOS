@@ -1,0 +1,2 @@
+# Validate with visudo -cf before installing root:root 0440.
+ultroid ALL=(root) NOPASSWD: /usr/local/sbin/boudyos-deploy request --non-interactive

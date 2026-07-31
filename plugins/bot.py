@@ -22,14 +22,15 @@ from telethon.errors.rpcerrorlist import (
 )
 
 from pyUltroid.version import __version__ as UltVer
+from pyUltroid.security.updater import (
+    check_for_update,
+    format_update_report,
+    release_identity,
+    request_deployment,
+)
+from pyUltroid.security.status import write_update_status
 
 from . import HOSTED_ON, LOGS
-
-try:
-    from git import Repo
-except ImportError:
-    LOGS.error("bot: 'gitpython' module not found!")
-    Repo = None
 
 from telethon.utils import resolve_bot_file_id
 
@@ -115,12 +116,10 @@ async def lol(ult):
         pic = choice(pic)
     uptime = time_formatter((time.time() - start_time) * 1000)
     header = udB.get_key("ALIVE_TEXT") or get_string("bot_1")
-    y = Repo().active_branch
-    xx = Repo().remotes[0].config_reader.get("url")
-    rep = xx.replace(".git", f"/tree/{y}")
-    kk = f" `[{y}]({rep})` "
+    release_label, rep = release_identity()
+    kk = f" `[{release_label}]({rep})` "
     if inline:
-        kk = f"<a href={rep}>{y}</a>"
+        kk = f'<a href="{rep}">{release_label}</a>'
         parse = "html"
         als = in_alive.format(
             header,
@@ -212,8 +211,6 @@ async def restartbt(ult):
     udB.set_key("_RESTART", f"{who}_{ult.chat_id}_{ok.id}")
     if heroku_api:
         return await restart(ok)
-    await bash("git pull && pip3 install -r requirements.txt")
-    await bash("pip3 install -r requirements.txt --break-system-packages")
     if len(sys.argv) > 1:
         os.execl(sys.executable, sys.executable, "main.py")
     else:
@@ -274,10 +271,8 @@ async def inline_alive(ult):
         pic = choice(pic)
     uptime = time_formatter((time.time() - start_time) * 1000)
     header = udB.get_key("ALIVE_TEXT") or get_string("bot_1")
-    y = Repo().active_branch
-    xx = Repo().remotes[0].config_reader.get("url")
-    rep = xx.replace(".git", f"/tree/{y}")
-    kk = f"<a href={rep}>{y}</a>"
+    release_label, rep = release_identity()
+    kk = f'<a href="{rep}">{release_label}</a>'
     als = in_alive.format(
         header, f"{ultroid_version} [{HOSTED_ON}]", UltVer, pyver(), uptime, kk
     )
@@ -322,38 +317,33 @@ async def inline_alive(ult):
 @ultroid_cmd(pattern="update( (.*)|$)")
 async def _(e):
     xx = await e.eor(get_string("upd_1"))
-    if e.pattern_match.group(1).strip() and (
-        "fast" in e.pattern_match.group(1).strip()
-        or "soft" in e.pattern_match.group(1).strip()
-    ):
-        await bash("git pull -f && pip3 install -r requirements.txt")
-        await bash("pip3 install -r requirements.txt --break-system-packages")
-        call_back()
-        await xx.edit(get_string("upd_7"))
-        os.execl(sys.executable, "python3", "-m", "pyUltroid")
-        # return
-    m = await updater()
-    branch = (Repo.init()).active_branch
-    if m:
-        x = await asst.send_file(
-            udB.get_key("LOG_CHANNEL"),
-            ULTPIC(),
-            caption="• **Update Available** •",
-            force_document=False,
-            buttons=Button.inline("Changelogs", data="changes"),
+    state = await check_for_update()
+    write_update_status(state)
+    request = e.pattern_match.group(1).strip().lower()
+    if request in ("fast", "soft", "deploy"):
+        helper = udB.get_key("BOUDYOS_DEPLOY_HELPER") or os.environ.get(
+            "BOUDYOS_DEPLOY_HELPER"
         )
-        Link = x.message_link
-        await xx.edit(
-            f'<strong><a href="{Link}">[ChangeLogs]</a></strong>',
-            parse_mode="html",
-            link_preview=False,
-        )
-    else:
-        await xx.edit(
-            f'<code>Your BOT is </code><strong>up-to-date</strong><code> with </code><strong><a href="https://github.com/TeamUltroid/Ultroid/tree/{branch}">[{branch}]</a></strong>',
-            parse_mode="html",
-            link_preview=False,
-        )
+        if not helper:
+            return await xx.edit(
+                format_update_report(state)
+                + "\n\nNo privileged deployment helper is configured; this is "
+                "check/report only."
+            )
+        if state.dirty or not state.update_available:
+            return await xx.edit(format_update_report(state))
+        try:
+            result = await request_deployment(str(helper))
+        except (OSError, ValueError) as exc:
+            LOGS.warning("Deployment helper request refused: %s", exc)
+            return await xx.edit("`Deployment helper configuration was refused.`")
+        if result.ok:
+            return await xx.edit(
+                "`The privileged BoudyOS deployment helper accepted the request. "
+                "Use the status dashboard to monitor readiness.`"
+            )
+        return await xx.edit("`The deployment helper rejected the request.`")
+    await xx.edit(format_update_report(state))
 
 
 @callback("updtavail", owner=True)

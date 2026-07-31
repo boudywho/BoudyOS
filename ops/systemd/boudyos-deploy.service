@@ -1,0 +1,27 @@
+[Unit]
+Description=BoudyOS transactional release deployment
+After=network-online.target boudyos-paths.service
+Wants=network-online.target
+Requires=boudyos-paths.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/boudyos-deploy deploy --non-interactive
+TimeoutStartSec=15min
+UMask=0027
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/boudyos /var/lib/boudyos /run/boudyos /run/lock/boudyos
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+[Install]
+WantedBy=multi-user.target

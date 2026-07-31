@@ -12,6 +12,9 @@
 """
 import os
 
+from pyUltroid.security.subprocess import run_exec
+from pyUltroid.security.paths import cli_path
+
 from . import bash, get_string, mediainfo, ultroid_cmd
 
 
@@ -20,8 +23,9 @@ async def _(e):
     try:
         import glitch_me  # ignore :pylint
     except ModuleNotFoundError:
-        await bash(
-            "pip install -e git+https://github.com/1Danish-00/glitch_me.git#egg=glitch_me"
+        return await e.eor(
+            "`glitch_me is not installed. Enable the experimental dependency "
+            "group during deployment.`"
         )
     reply = await e.get_reply_message()
     if not reply or not reply.media:
@@ -34,8 +38,15 @@ async def _(e):
         ok = await reply.download_media(thumb=-1)
     else:
         return await xx.eor(get_string("com_4"))
-    cmd = f"glitch_me gif --line_count 200 -f 10 -d 50 '{ok}' ult.gif"
-    await bash(cmd)
+    result = await run_exec(
+        [
+            "glitch_me", "gif", "--line_count", "200", "-f", "10", "-d", "50",
+            cli_path(ok), "ult.gif",
+        ],
+        timeout=300,
+    )
+    if not result.ok:
+        return await xx.edit("`glitch conversion failed.`")
     await e.reply(file="ult.gif", force_document=False)
     await xx.delete()
     os.remove(ok)

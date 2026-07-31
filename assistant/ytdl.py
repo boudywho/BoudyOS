@@ -296,7 +296,9 @@ async def _(event):
             thumb=thumb,
         )
         await event.edit(text, file=file.media, buttons=button)
-    await bash(f"rm {vid_id}.jpg")
+    thumbnail = f"{vid_id}.jpg"
+    if os.path.exists(thumbnail):
+        os.remove(thumbnail)
 
 
 @callback(re.compile("ytdl_back:(.*)"), owner=True)

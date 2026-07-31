@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily BoudyOS encrypted backup
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=45m
+Unit=boudyos-backup.service
+
+[Install]
+WantedBy=timers.target

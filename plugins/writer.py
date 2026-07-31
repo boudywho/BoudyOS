@@ -19,6 +19,7 @@ import os
 
 from htmlwebshot import WebShot
 from PIL import Image, ImageDraw, ImageFont
+from pyUltroid.paths import source_resource
 
 from . import async_searcher, eod, get_string, text_set, ultroid_cmd
 
@@ -69,9 +70,9 @@ async def writer(e):
     else:
         return await eod(e, get_string("writer_1"))
     k = await e.eor(get_string("com_1"))
-    img = Image.open("resources/extras/template.jpg")
+    img = Image.open(source_resource("extras", "template.jpg"))
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype("resources/fonts/assfont.ttf", 30)
+    font = ImageFont.truetype(source_resource("fonts", "assfont.ttf"), 30)
     x, y = 150, 140
     lines = text_set(text)
     bbox = font.getbbox("hg")

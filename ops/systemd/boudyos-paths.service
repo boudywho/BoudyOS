@@ -1,0 +1,26 @@
+[Unit]
+Description=Provision BoudyOS protected filesystem paths
+After=local-fs.target
+Before=boudyos.service boudyos-deploy.path boudyos-deploy.service
+Before=boudyos-backup.service boudyos-health.service
+Before=boudyos-update-check.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/systemd-tmpfiles --create /usr/lib/tmpfiles.d/boudyos.conf
+RemainAfterExit=yes
+UMask=0027
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+RestrictAddressFamilies=AF_UNIX
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

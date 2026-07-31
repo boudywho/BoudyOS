@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily approved BoudyOS release check
+
+[Timer]
+OnBootSec=10m
+OnUnitActiveSec=1d
+RandomizedDelaySec=30m
+Persistent=true
+Unit=boudyos-update-check.service
+
+[Install]
+WantedBy=timers.target

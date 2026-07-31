@@ -9,11 +9,12 @@ import json
 import math
 import os
 import random
-import re, subprocess
+import re
 import secrets
 import ssl, html
 from io import BytesIO
 from json.decoder import JSONDecodeError
+from pathlib import Path
 from traceback import format_exc
 
 import requests
@@ -22,6 +23,9 @@ from .. import *
 from ..exceptions import DependencyMissingError
 from . import some_random_headers
 from .helper import async_searcher, bash, run_async
+from ..security.parsing import safe_data_value
+from ..security.paths import cli_path, curl_file_reference
+from ..security.subprocess import run_exec
 
 try:
     import certifi
@@ -94,7 +98,7 @@ def json_parser(data, indent=None, ascii=False):
             if indent:
                 parsed = json.dumps(data, indent=indent, ensure_ascii=ascii)
     except JSONDecodeError:
-        parsed = eval(data)
+        parsed = safe_data_value(data)
     return parsed
 
 
@@ -113,14 +117,20 @@ async def is_url_ok(url: str):
 
 
 async def metadata(file):
-    out, _ = await bash(f'mediainfo "{_unquote_text(file)}" --Output=JSON')
-    if _ and _.endswith("NOT_FOUND"):
+    result = await run_exec(
+        ["mediainfo", cli_path(file), "--Output=JSON"],
+        timeout=30,
+        output_limit=2_000_000,
+    )
+    if result.returncode == 127:
         raise DependencyMissingError(
-            f"'{_}' is not installed!\nInstall it to use this command."
+            "'MEDIAINFO_NOT_FOUND' is not installed!\nInstall it to use this command."
         )
+    if not result.ok:
+        raise ValueError(result.stderr or "mediainfo failed")
     
     data = {}
-    _info = json.loads(out)["media"]
+    _info = json.loads(result.stdout)["media"]
     if not _info:
         return {}
     _info = _info["track"]
@@ -258,13 +268,29 @@ async def webuploader(chat_id: int, msg_id: int, uploader: str):
     else:
         return "Uploader not supported or invalid."
 
-    files = {"file": open(file, "rb")}  # Adjusted for both formats
-
     try:
+        curl_reference = curl_file_reference(file)
         if uploader == "filebin":
-            cmd = f"curl -X POST --data-binary '@{file}' -H 'filename: \"{file}\"' \"{url}\""
-            response = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            if response.returncode == 0:
+            response = await run_exec(
+                [
+                    "curl",
+                    "--fail",
+                    "--silent",
+                    "--show-error",
+                    "--max-time",
+                    "60",
+                    "-X",
+                    "POST",
+                    "--data-binary",
+                    curl_reference,
+                    "-H",
+                    f"filename: {os.path.basename(file)}",
+                    url,
+                ],
+                timeout=70,
+                output_limit=1_000_000,
+            )
+            if response.ok:
                 response_json = json.loads(response.stdout)
                 bin_id = response_json.get("bin", {}).get("id")
                 if bin_id:
@@ -273,16 +299,24 @@ async def webuploader(chat_id: int, msg_id: int, uploader: str):
                 else:
                     return "Failed to extract bin ID from Filebin response"
             else:
-                return f"Failed to upload file to Filebin: {response.stderr.strip()}"
+                return f"Failed to upload file to Filebin: {response.stderr}"
         elif uploader == "catbox":
-            cmd = f"curl -F reqtype=fileupload -F time=24h -F 'fileToUpload=@{file}' {url}"
+            argv = [
+                "curl", "--fail", "--silent", "--show-error", "--max-time", "60",
+                "-F", "reqtype=fileupload", "-F", "time=24h",
+                "-F", f"fileToUpload={curl_reference}", url,
+            ]
         elif uploader == "0x0.st":
-            cmd = f"curl -F 'file=@{file}' {url}"
+            argv = [
+                "curl", "--fail", "--silent", "--show-error", "--max-time", "60",
+                "-F", f"file={curl_reference}", url,
+            ]
         elif uploader == "file.io" or uploader == "siasky":
             try:
-                status = await async_searcher(
-                    url, data=files, post=True, re_json=json_format
-                )
+                with open(file, "rb") as upload:
+                    status = await async_searcher(
+                        url, data={"file": upload}, post=True, re_json=json_format
+                    )
             except Exception as e:
                 return f"Failed to upload file: {e}"
             if isinstance(status, dict):
@@ -293,11 +327,11 @@ async def webuploader(chat_id: int, msg_id: int, uploader: str):
         else:
             raise ValueError("Uploader not supported")
 
-        response = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        if response.returncode == 0:
-            return response.stdout.strip()
+        response = await run_exec(argv, timeout=70, output_limit=1_000_000)
+        if response.ok:
+            return response.stdout
         else:
-            return f"Failed to upload file: {response.stderr.strip()}"
+            return f"Failed to upload file: {response.stderr}"
     except Exception as e:
         return f"Failed to upload file: {e}"
 
@@ -757,13 +791,21 @@ class TgConverter:
         LOGS.info(f"Converting animated sticker: {file} -> {out_path}")
         try:
             if out_path.endswith("webp"):
-                er, out = await bash(
-                    f"lottie_convert.py --webp-quality 100 --webp-skip-frames 100 '{file}' '{out_path}'"
+                result = await run_exec(
+                    [
+                        "lottie_convert.py", "--webp-quality", "100",
+                        "--webp-skip-frames", "100", cli_path(file), cli_path(out_path),
+                    ],
+                    timeout=120,
                 )
             else:
-                er, out = await bash(f"lottie_convert.py '{file}' '{out_path}'")
+                result = await run_exec(
+                    ["lottie_convert.py", cli_path(file), cli_path(out_path)],
+                    timeout=120,
+                )
             
-            if er:
+            if not result.ok:
+                er = result.stderr or "lottie conversion failed"
                 LOGS.error(f"Error in animated_sticker conversion: {er}")
                 if throw:
                     raise LottieException(er)
@@ -785,11 +827,15 @@ class TgConverter:
         """Convert animated sticker to gif."""
         LOGS.info(f"Converting to gif: {file} -> {out_path}")
         try:
-            er, out = await bash(
-                f"lottie_convert.py '{_unquote_text(file)}' '{_unquote_text(out_path)}'"
+            result = await run_exec(
+                ["lottie_convert.py", cli_path(file), cli_path(out_path)],
+                timeout=120,
             )
-            if er:
-                LOGS.error(f"Error in animated_to_gif conversion: {er}")
+            if not result.ok:
+                LOGS.error(
+                    "Error in animated_to_gif conversion: %s",
+                    result.stderr or "conversion failed",
+                )
             if os.path.exists(out_path):
                 LOGS.info("Successfully converted to gif")
                 return out_path
@@ -839,11 +885,23 @@ class TgConverter:
                 input_, name=output[:-5], remove=remove
             )
         if output.endswith(".gif"):
-            out, er = await bash(f"ffmpeg -i '{input_}' -an -sn -c:v copy '{output}.mp4' -y")
-            LOGS.info(f"FFmpeg output: {out}, Error: {er}")
+            result = await run_exec(
+                [
+                    "ffmpeg", "-i", cli_path(input_), "-an", "-sn", "-c:v", "copy",
+                    cli_path(f"{output}.mp4"), "-y",
+                ],
+                timeout=180,
+            )
         else:
-            out, er = await bash(f"ffmpeg -i '{input_}' '{output}' -y")
-            LOGS.info(f"FFmpeg output: {out}, Error: {er}")
+            result = await run_exec(
+                ["ffmpeg", "-i", cli_path(input_), cli_path(output), "-y"],
+                timeout=180,
+            )
+        LOGS.info(
+            "FFmpeg return code: %s, Error: %s",
+            result.returncode,
+            result.stderr or None,
+        )
         if remove:
             os.remove(input_)
         if os.path.exists(output):
@@ -865,9 +923,17 @@ class TgConverter:
                 if w > h:
                     h, w = -1, 512
                     
-            await bash(
-                f'ffmpeg -i "{file}" -preset fast -an -to 00:00:03 -crf 30 -bufsize 256k -b:v {_["bitrate"]} -vf "scale={w}:{h},fps=30" -c:v libvpx-vp9 "{name}" -y'
+            result = await run_exec(
+                [
+                    "ffmpeg", "-i", cli_path(file), "-preset", "fast", "-an", "-to",
+                    "00:00:03", "-crf", "30", "-bufsize", "256k", "-b:v",
+                    str(_["bitrate"]), "-vf", f"scale={w}:{h},fps=30", "-c:v",
+                    "libvpx-vp9", cli_path(name), "-y",
+                ],
+                timeout=180,
             )
+            if not result.ok:
+                raise LottieException(result.stderr or "ffmpeg conversion failed")
             
             if remove and os.path.exists(file):
                 os.remove(file)
@@ -1048,14 +1114,7 @@ class TgConverter:
 
 
 def _get_value(stri):
-    try:
-        value = eval(stri.strip())
-    except Exception as er:
-        from .. import LOGS
-
-        LOGS.debug(er)
-        value = stri.strip()
-    return value
+    return safe_data_value(stri)
 
 
 def safe_load(file, *args, **kwargs):

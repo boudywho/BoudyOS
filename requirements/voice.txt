@@ -1,0 +1,4 @@
+# Voice chat. Install only when VCBOT is configured.
+pytgcalls>=2,<4
+tgcrypto>=1.2,<2
+av>=12
