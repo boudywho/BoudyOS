@@ -3,7 +3,7 @@
 ## Existing installations
 
 Before changing units, complete an authenticated encrypted backup and restore
-verification. Pin both `v2.2.0` and its exact 40-hex peeled commit in the
+verification. Pin both `v2.2.1` and its exact 40-hex peeled commit in the
 root-owned deploy configuration. A placeholder is documentation only and is
 rejected by operational actions.
 
@@ -111,4 +111,4 @@ Verify Redis, session
 login, assistant connection, media writes, and a restore drill before removing
 any legacy files.
 
-The upstream py-Ultroid version remains `2026.04.03`; BoudyOS is `2.2.0`.
+The upstream py-Ultroid version remains `2026.04.03`; BoudyOS is `2.2.1`.

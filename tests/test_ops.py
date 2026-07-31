@@ -1557,6 +1557,111 @@ PY
         self.assertIn("boudyos-migrate-ultroid rollback", documentation)
         self.assertIn("original ultroid.service was restored", source)
 
+    def test_legacy_restart_stability_does_not_require_managed_heartbeat(self):
+        script = ROOT / "ops/boudyos-migrate-ultroid"
+        with tempfile.TemporaryDirectory() as tmp:
+            ready = Path(tmp) / "ready"
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    r'''
+source "$SCRIPT"
+systemctl() {
+    if [[ "$1" == show ]]; then echo 222; return 0; fi
+    if [[ "$1" == is-active ]]; then return 0; fi
+    return 0
+}
+sleep() { :; }
+wait_legacy_stable 111
+test ! -e "$BOUDYOS_READY_FILE"
+''',
+                ],
+                env={
+                    **os.environ,
+                    "SCRIPT": str(script),
+                    "BOUDYOS_MIGRATION_LIB": "1",
+                    "BOUDYOS_READY_FILE": str(ready),
+                    "BOUDYOS_LEGACY_STABILITY_SECONDS": "2",
+                    "BOUDYOS_LEGACY_STABILITY_ATTEMPTS": "3",
+                },
+                text=True,
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_legacy_restart_stability_rejects_pid_flapping(self):
+        script = ROOT / "ops/boudyos-migrate-ultroid"
+        with tempfile.TemporaryDirectory() as tmp:
+            counter = Path(tmp) / "counter"
+            counter.write_text("0", "ascii")
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    r'''
+source "$SCRIPT"
+systemctl() {
+    if [[ "$1" == show ]]; then
+        n=$(cat "$COUNTER"); n=$((n + 1)); printf '%s' "$n" > "$COUNTER"
+        if (( n % 2 )); then echo 222; else echo 333; fi
+        return 0
+    fi
+    if [[ "$1" == is-active ]]; then return 0; fi
+    return 0
+}
+sleep() { :; }
+if wait_legacy_stable 111; then exit 9; fi
+''',
+                ],
+                env={
+                    **os.environ,
+                    "SCRIPT": str(script),
+                    "COUNTER": str(counter),
+                    "BOUDYOS_MIGRATION_LIB": "1",
+                    "BOUDYOS_LEGACY_STABILITY_SECONDS": "2",
+                    "BOUDYOS_LEGACY_STABILITY_ATTEMPTS": "4",
+                },
+                text=True,
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_managed_readiness_still_requires_heartbeat(self):
+        script = ROOT / "ops/boudyos-migrate-ultroid"
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    r'''
+source "$SCRIPT"
+systemctl() {
+    if [[ "$1" == show ]]; then echo 222; return 0; fi
+    if [[ "$1" == is-active ]]; then return 0; fi
+    return 0
+}
+sleep() { :; }
+if wait_ready 1 111; then exit 9; fi
+''',
+                ],
+                env={
+                    **os.environ,
+                    "SCRIPT": str(script),
+                    "BOUDYOS_MIGRATION_LIB": "1",
+                    "BOUDYOS_READY_FILE": str(Path(tmp) / "missing-ready"),
+                },
+                text=True,
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_legacy_migration_prepare_preserves_exact_state_and_snapshot(self):
         script = ROOT / "ops/boudyos-migrate-ultroid"
         with tempfile.TemporaryDirectory() as tmp:
@@ -1586,6 +1691,7 @@ PY
                     "BOUDYOS_SNAPSHOT_ROOT": str(root / "snapshots"),
                     "BOUDYOS_MIGRATION_RECORD": str(root / "migration.record"),
                     "BOUDYOS_RUNTIME_LINK": str(root / "runtime-current"),
+                    "BOUDYOS_DROPIN_DIR": str(root / "ultroid.service.d"),
                     "BOUDYOS_BACKUP_CONFIG": str(backup),
                     "BOUDYOS_BACKUP_PATHS": str(backup_paths),
                     "BOUDYOS_HEALTH_CONFIG": str(health_config),
@@ -1614,6 +1720,15 @@ PY
 test "$(cat "$seed/work/account.session")" = session
 test ! -e "$seed/pyUltroid"
 test "$(stat -c %a "$RECORD")" = 600
+before_count=$(find "$SNAPSHOT_ROOT" -mindepth 1 -maxdepth 1 -type d | wc -l)
+systemctl() {
+    if [[ "$1" == is-active ]]; then return 0; fi
+    if [[ "$1" == show ]]; then echo 222; return 0; fi
+    return 0
+}
+prepare
+after_count=$(find "$SNAPSHOT_ROOT" -mindepth 1 -maxdepth 1 -type d | wc -l)
+test "$before_count" = "$after_count"
 '''
             result = subprocess.run(
                 ["bash", "-c", command],
