@@ -14,6 +14,7 @@ def main():
     import time
 
     from .fns.helper import bash, time_formatter, updater
+    from .paths import SOURCE_ROOT
     from .startup.funcs import (
         WasItRestart,
         autopilot,
@@ -30,15 +31,16 @@ def main():
     except ImportError:
         AsyncIOScheduler = None
 
-    # Option to Auto Update On Restarts..
+    # Compatibility setting now performs a check only. Deployment is external.
     if (
         udB.get_key("UPDATE_ON_RESTART")
-        and os.path.exists(".git")
+        and (SOURCE_ROOT / ".git").is_dir()
         and ultroid_bot.run_in_loop(updater())
     ):
-        ultroid_bot.run_in_loop(bash("bash installer.sh"))
-
-        os.execl(sys.executable, sys.executable, "-m", "pyUltroid")
+        LOGS.warning(
+            "A BoudyOS update is available. UPDATE_ON_RESTART no longer mutates "
+            "the checkout; use the documented deployment helper."
+        )
 
     ultroid_bot.run_in_loop(startup_stuff())
 
@@ -86,6 +88,17 @@ def main():
     # Send/Ignore Deploy Message..
     if not udB.get_key("LOG_OFF"):
         ultroid_bot.run_in_loop(ready())
+
+    # Operational readiness is unconditional and independent of log delivery.
+    from .security.status import mark_ready, readiness_heartbeat
+
+    ready_path = os.environ.get("BOUDYOS_READY_FILE", "")
+    if ready_path:
+        try:
+            mark_ready(ready_path)
+        except (OSError, ValueError) as exc:
+            LOGS.warning("Readiness marker was not written: %s", exc)
+        ultroid_bot.loop.create_task(readiness_heartbeat(ready_path))
 
     # Edit Restarting Message (if It's restarting)
     ultroid_bot.run_in_loop(WasItRestart(udB))

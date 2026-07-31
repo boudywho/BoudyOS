@@ -1,0 +1,18 @@
+# Install root:root 0640 as /etc/boudyos/deploy.conf.
+BOUDYOS_RELEASE_TAG=v2.2.0
+# Documentation placeholder only. Production check/preflight/request/deploy fail
+# closed until this is replaced with the exact 40-hex commit peeled from v2.2.0.
+BOUDYOS_RELEASE_COMMIT=0000000000000000000000000000000000000000
+BOUDYOS_RELEASE_ROOT=/opt/boudyos/releases
+BOUDYOS_RUNTIME_ROOT=/var/lib/boudyos/workspaces
+BOUDYOS_RUNTIME_LINK=/var/lib/boudyos/current
+BOUDYOS_RUNTIME_USER=boudyos
+BOUDYOS_RUNTIME_GROUP=boudyos
+BOUDYOS_STATUS_DIR=/var/lib/boudyos/status
+BOUDYOS_APP_STATUS_DIR=/var/lib/boudyos/app-status
+BOUDYOS_STATUS_GROUP=boudyos
+BOUDYOS_RELEASE_METADATA=/var/lib/boudyos/status/release.json
+BOUDYOS_SERVICE=boudyos.service
+BOUDYOS_READY_FILE=/run/boudyos/ready
+BOUDYOS_READY_MAX_AGE_SECONDS=45
+BOUDYOS_KEEP_RELEASES=5

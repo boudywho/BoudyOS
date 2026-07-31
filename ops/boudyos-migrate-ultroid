@@ -1,0 +1,866 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+readonly LEGACY_USER="${BOUDYOS_LEGACY_USER:-ultroid}"
+readonly LEGACY_GROUP="${BOUDYOS_LEGACY_GROUP:-ultroid}"
+readonly LEGACY_SERVICE="${BOUDYOS_LEGACY_SERVICE:-ultroid.service}"
+readonly LEGACY_SOURCE="${BOUDYOS_LEGACY_SOURCE:-/opt/ultroid}"
+readonly LEGACY_ENV="${BOUDYOS_LEGACY_ENV:-/etc/ultroid/ultroid.env}"
+readonly NEW_ENV="${BOUDYOS_NEW_ENV:-/etc/boudyos/runtime.env}"
+readonly RUNTIME_ROOT="${BOUDYOS_RUNTIME_ROOT:-/var/lib/boudyos/workspaces}"
+readonly SNAPSHOT_ROOT="${BOUDYOS_SNAPSHOT_ROOT:-/var/lib/boudyos/migration-snapshots}"
+readonly RECORD="${BOUDYOS_MIGRATION_RECORD:-/var/lib/boudyos/ultroid-migration.snapshot}"
+readonly DROPIN_DIR="${BOUDYOS_DROPIN_DIR:-/etc/systemd/system/ultroid.service.d}"
+readonly DROPIN="$DROPIN_DIR/boudyos.conf"
+readonly OBSOLETE_SOURCE_LINK="${BOUDYOS_OBSOLETE_CURRENT_LINK:-/opt/boudyos/current}"
+readonly RUNTIME_LINK="${BOUDYOS_RUNTIME_LINK:-/var/lib/boudyos/current}"
+readonly DEPLOY_CONFIG="${BOUDYOS_DEPLOY_CONFIG:-/etc/boudyos/deploy.conf}"
+if [[ "${BOUDYOS_MIGRATION_LIB:-0}" == "1" ]]; then
+    readonly TRANSITION_LOCK="${BOUDYOS_DEPLOY_LOCK:-/tmp/boudyos-deploy-test.lock}"
+else
+    readonly TRANSITION_LOCK="/run/lock/boudyos/deploy.lock"
+fi
+readonly READY_FILE="${BOUDYOS_READY_FILE:-/run/boudyos/ready}"
+readonly BACKUP_CONFIG="${BOUDYOS_BACKUP_CONFIG:-/etc/boudyos/backup.conf}"
+readonly BACKUP_PATHS="${BOUDYOS_BACKUP_PATHS:-/etc/boudyos/backup-paths-ultroid}"
+readonly HEALTH_CONFIG="${BOUDYOS_HEALTH_CONFIG:-/etc/boudyos/health.conf}"
+readonly STATUS_DIR="${BOUDYOS_STATUS_DIR:-/var/lib/boudyos/status}"
+readonly BACKUP_STATUS="${BOUDYOS_BACKUP_STATUS:-$STATUS_DIR/backup.json}"
+readonly STAGED_METADATA="${BOUDYOS_STAGED_METADATA:-$STATUS_DIR/staged-release.json}"
+readonly DRY_RUN="${BOUDYOS_DRY_RUN:-0}"
+
+plan() {
+    printf '%s\n' \
+        "legacy_user=ultroid" \
+        "legacy_service=ultroid.service" \
+        "legacy_source=/opt/ultroid" \
+        "legacy_env=/etc/ultroid/ultroid.env" \
+        "new_runtime=/var/lib/boudyos/current" \
+        "rollback_snapshot=/var/lib/boudyos/migration-snapshots"
+}
+
+require_root() {
+    [[ "$(id -u)" == "0" ]] || {
+        echo "Legacy migration requires root." >&2
+        return 1
+    }
+}
+
+wait_ready() {
+    local started="$1" old_pid="${2:-0}" _ pid
+    for _ in {1..60}; do
+        pid="$(systemctl show "$LEGACY_SERVICE" --property=MainPID --value 2>/dev/null || true)"
+        if systemctl is-active --quiet "$LEGACY_SERVICE" && \
+            [[ "$pid" =~ ^[1-9][0-9]*$ && "$pid" != "$old_pid" ]] && \
+            python3 - "$READY_FILE" "$pid" "$started" <<'PY'
+import json, sys, time
+try:
+    value = json.load(open(sys.argv[1], encoding="ascii"))
+    ok = (
+        value.get("schema_version") == 1
+        and int(value["pid"]) == int(sys.argv[2])
+        and int(value["timestamp"]) >= int(sys.argv[3])
+        and time.time() - int(value["timestamp"]) <= 45
+    )
+except (OSError, ValueError, KeyError, TypeError):
+    ok = False
+raise SystemExit(0 if ok else 1)
+PY
+        then
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
+
+service_main_pid() {
+    local pid
+    pid="$(systemctl show "$LEGACY_SERVICE" --property=MainPID --value 2>/dev/null)" \
+        || return 1
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    printf '%s\n' "$pid"
+}
+
+stop_service_verified() {
+    local active_state
+    systemctl stop "$LEGACY_SERVICE" || return 1
+    active_state="$(systemctl is-active "$LEGACY_SERVICE" 2>/dev/null || true)"
+    [[ "$active_state" == "inactive" ]] || return 1
+    [[ "$(service_main_pid)" == "0" ]]
+}
+
+acquire_transition_lock() {
+    install -d -m 0750 "$(dirname "$TRANSITION_LOCK")"
+    exec 9>"$TRANSITION_LOCK"
+    flock -n 9 || {
+        echo "Another deployment or migration transition is active." >&2
+        return 1
+    }
+}
+
+verify_staged_release() {
+    local release="$1" runtime="$2" tag="$3" commit="$4"
+    [[ "$(git -C "$release" remote get-url origin 2>/dev/null)" == \
+        "https://github.com/boudywho/BoudyOS.git" ]] || return 1
+    [[ "$(git -C "$release" rev-parse HEAD 2>/dev/null)" == "$commit" ]] \
+        || return 1
+    [[ "$(git -C "$release" rev-parse "refs/tags/$tag^{commit}" 2>/dev/null)" == \
+        "$commit" ]] || return 1
+    [[ -z "$(GIT_OPTIONAL_LOCKS=0 git -C "$release" status \
+        --porcelain --untracked-files=normal)" ]] \
+        || return 1
+    python3 - "$release" "$runtime" "$(id -u "$LEGACY_USER")" \
+        "$(getent group "$LEGACY_GROUP" | cut -d: -f3)" <<'PY'
+import os
+import stat
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1]).resolve(strict=True)
+runtime = Path(sys.argv[2]).resolve(strict=True)
+runtime_uid = int(sys.argv[3])
+runtime_gid = int(sys.argv[4])
+mutable_top = {"addons", "downloads", "sessions", "db", "logs", "temp", "vcbot"}
+mutable_resources = {"auth", "auths", "downloads"}
+
+if (
+    source.lstat().st_uid != 0
+    or source.lstat().st_gid != runtime_gid
+    or stat.S_IMODE(source.lstat().st_mode) != 0o750
+):
+    raise SystemExit(1)
+for directory, names, files in os.walk(source, followlinks=False):
+    base = Path(directory)
+    for name in names + files:
+        child = base / name
+        info = child.lstat()
+        if info.st_uid != 0:
+            raise SystemExit(1)
+        if stat.S_ISLNK(info.st_mode):
+            try:
+                target = child.resolve(strict=True)
+            except OSError:
+                raise SystemExit(1)
+            if target.is_relative_to(source):
+                continue
+            for selector in (target, *target.parents[:-1]):
+                selector_info = selector.lstat()
+                if (
+                    selector_info.st_uid != 0
+                    or selector_info.st_mode & 0o022
+                ):
+                    raise SystemExit(1)
+            continue
+        if info.st_mode & 0o027:
+            raise SystemExit(1)
+runtime_info = runtime.lstat()
+if (
+    runtime_info.st_uid != 0
+    or runtime_info.st_gid != runtime_gid
+    or stat.S_IMODE(runtime_info.st_mode) != 0o750
+    or {child.name for child in runtime.iterdir()} != {"source", "work"}
+):
+    raise SystemExit(1)
+source_link = runtime / "source"
+source_link_info = source_link.lstat()
+if (
+    not stat.S_ISLNK(source_link_info.st_mode)
+    or source_link_info.st_uid != 0
+    or source_link_info.st_gid != runtime_gid
+    or os.readlink(source_link) != str(source)
+    or source_link.resolve(strict=True) != source
+):
+    raise SystemExit(1)
+work = runtime / "work"
+work_info = work.lstat()
+if (
+    stat.S_ISLNK(work_info.st_mode)
+    or not stat.S_ISDIR(work_info.st_mode)
+    or work_info.st_uid != runtime_uid
+    or work_info.st_gid != runtime_gid
+    or stat.S_IMODE(work_info.st_mode) != 0o700
+):
+    raise SystemExit(1)
+for name in ("pyUltroid", "plugins", "assistant", "strings", "startup"):
+    if (work / name).exists() or (work / name).is_symlink():
+        raise SystemExit(1)
+for name in mutable_top:
+    path = work / name
+    if path.is_symlink() or not path.is_dir():
+        raise SystemExit(1)
+resources = work / "resources"
+if resources.is_symlink() or not resources.is_dir():
+    raise SystemExit(1)
+if {child.name for child in resources.iterdir()} != mutable_resources:
+    raise SystemExit(1)
+for name in mutable_resources:
+    path = resources / name
+    if path.is_symlink() or not path.is_dir():
+        raise SystemExit(1)
+for directory, names, files in os.walk(work, followlinks=False):
+    base = Path(directory)
+    for name in names + files:
+        info = (base / name).lstat()
+        mode = stat.S_IMODE(info.st_mode)
+        if (
+            stat.S_ISLNK(info.st_mode)
+            or info.st_uid != runtime_uid
+            or info.st_gid != runtime_gid
+            or (
+                stat.S_ISDIR(info.st_mode) and mode != 0o700
+                or stat.S_ISREG(info.st_mode) and mode not in (0o600, 0o700)
+            )
+        ):
+            raise SystemExit(1)
+PY
+}
+
+copy_legacy_mutable_state() {
+    local source="${1:?legacy source required}" destination="${2:?destination required}"
+    python3 - "$source" "$destination" <<'PY'
+import os
+import shutil
+import stat
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1])
+destination = Path(sys.argv[2])
+names = {
+    ".env", "database.json", "ultroid.json", ".megarc", "addons",
+    "downloads", "sessions", "db", "logs", "temp", "vcbot",
+}
+names.update(
+    path.name for path in source.iterdir()
+    if path.name.endswith((".session", ".db", ".sqlite", ".sqlite3"))
+    or ".session-" in path.name
+)
+for relative in sorted(names):
+    item = source / relative
+    if not item.exists() and not item.is_symlink():
+        continue
+    info = item.lstat()
+    if stat.S_ISLNK(info.st_mode) or not (
+        stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)
+    ):
+        raise SystemExit("legacy mutable state contains a link or special entry")
+    if stat.S_ISDIR(info.st_mode):
+        for directory, child_dirs, files in os.walk(item, followlinks=False):
+            base = Path(directory)
+            for name in child_dirs + files:
+                mode = (base / name).lstat().st_mode
+                if stat.S_ISLNK(mode) or not (
+                    stat.S_ISREG(mode) or stat.S_ISDIR(mode)
+                ):
+                    raise SystemExit(
+                        "legacy mutable state contains a link or special entry"
+                    )
+        shutil.copytree(item, destination / relative, dirs_exist_ok=True)
+    else:
+        shutil.copy2(item, destination / relative)
+for relative in ("resources/auth", "resources/auths", "resources/downloads"):
+    item = source / relative
+    if not item.exists():
+        continue
+    if item.is_symlink() or not item.is_dir():
+        raise SystemExit("legacy resource state is unsafe")
+    for directory, child_dirs, files in os.walk(item, followlinks=False):
+        base = Path(directory)
+        for name in child_dirs + files:
+            mode = (base / name).lstat().st_mode
+            if stat.S_ISLNK(mode) or not (
+                stat.S_ISREG(mode) or stat.S_ISDIR(mode)
+            ):
+                raise SystemExit("legacy resource state is unsafe")
+    shutil.copytree(item, destination / relative, dirs_exist_ok=True)
+PY
+}
+
+load_staged_release() {
+    local release_root="$1" runtime_root="$2" tag="$3" commit="$4"
+    python3 - "$STAGED_METADATA" "$release_root" "$runtime_root" \
+        "$tag" "$commit" <<'PY'
+import json
+import os
+import re
+import stat
+import sys
+from pathlib import Path
+
+state_name, release_root_name, runtime_root_name, tag, commit = sys.argv[1:]
+state = Path(state_name)
+expected_uid = 0 if os.geteuid() == 0 else os.geteuid()
+try:
+    info = state.lstat()
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or stat.S_ISLNK(info.st_mode)
+        or info.st_uid != expected_uid
+        or info.st_mode & 0o022
+        or info.st_size > 16 * 1024
+    ):
+        raise ValueError
+    value = json.loads(state.read_text("utf-8"))
+except (OSError, ValueError, json.JSONDecodeError):
+    raise SystemExit("staged release state ownership or format is unsafe")
+
+release_root = Path(release_root_name)
+runtime_root = Path(runtime_root_name)
+release = release_root / commit
+runtime = runtime_root / commit
+expected_keys = {
+    "schema_version", "tag", "commit", "release_path", "runtime_path",
+    "checked_at",
+}
+if (
+    set(value) != expected_keys
+    or value.get("schema_version") != 1
+    or value.get("tag") != tag
+    or value.get("commit") != commit
+    or value.get("release_path") != str(release)
+    or value.get("runtime_path") != str(runtime)
+    or not isinstance(value.get("checked_at"), str)
+    or not re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+", tag)
+    or not re.fullmatch(r"[0-9a-f]{40}", commit)
+):
+    raise SystemExit("staged release state does not match the configured release")
+for path in (release_root, runtime_root, release, runtime):
+    try:
+        path_info = path.lstat()
+    except OSError:
+        raise SystemExit("staged release path is missing")
+    if stat.S_ISLNK(path_info.st_mode) or not stat.S_ISDIR(path_info.st_mode):
+        raise SystemExit("staged release path must be a regular directory")
+if release.resolve(strict=True) != release_root.resolve(strict=True) / commit:
+    raise SystemExit("staged release path escapes its release root")
+if runtime.resolve(strict=True) != runtime_root.resolve(strict=True) / commit:
+    raise SystemExit("staged runtime path escapes its workspace root")
+print(release)
+print(runtime)
+PY
+}
+
+record_migration_state() {
+    local snapshot="$1" seed="$2"
+    python3 - "$RECORD" "$snapshot" "$seed" \
+        "$DROPIN" "$BACKUP_CONFIG" "$BACKUP_PATHS" "$HEALTH_CONFIG" <<'PY'
+import json
+import os
+import shutil
+import stat
+import sys
+from pathlib import Path
+
+(
+    record_name, snapshot_name, seed, dropin_name, backup_name, paths_name,
+    health_name,
+) = sys.argv[1:]
+record = Path(record_name)
+snapshot = Path(snapshot_name)
+expected_uid = 0 if os.geteuid() == 0 else os.geteuid()
+config_dir = snapshot / "config"
+config_dir.mkdir(mode=0o700)
+
+def snapshot_file(path_name, stored_name):
+    path = Path(path_name)
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        raise SystemExit("legacy rollback configuration is missing")
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or stat.S_ISLNK(info.st_mode)
+        or info.st_uid != expected_uid
+        or info.st_mode & 0o022
+    ):
+        raise SystemExit("legacy rollback configuration ownership is unsafe")
+    shutil.copy2(path, config_dir / stored_name, follow_symlinks=False)
+
+snapshot_file(backup_name, "backup.conf")
+snapshot_file(paths_name, "backup-paths")
+snapshot_file(health_name, "health.conf")
+dropin = Path(dropin_name)
+dropin_state = {"state": "absent"}
+if dropin.exists() or dropin.is_symlink():
+    info = dropin.lstat()
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or stat.S_ISLNK(info.st_mode)
+        or info.st_uid != expected_uid
+        or info.st_mode & 0o022
+    ):
+        raise SystemExit("pre-migration drop-in ownership is unsafe")
+    shutil.copy2(dropin, config_dir / "dropin", follow_symlinks=False)
+    dropin_state = {"state": "file"}
+
+value = {
+    "schema_version": 2,
+    "snapshot": str(snapshot),
+    "seed": seed,
+    "selector_policy": "remove-managed-selectors-on-legacy-rollback",
+    "dropin": dropin_state,
+}
+temporary = record.with_name("." + record.name + ".new")
+temporary.write_text(
+    json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n",
+    encoding="utf-8",
+)
+os.chmod(temporary, 0o600)
+os.replace(temporary, record)
+PY
+}
+
+validate_legacy_rollback_config() {
+    local snapshot="$1"
+    python3 - "$snapshot/config/backup.conf" "$snapshot/config/backup-paths" \
+        "$snapshot/config/health.conf" "$LEGACY_SOURCE" "$LEGACY_SERVICE" <<'PY'
+import sys
+from pathlib import Path
+
+backup_name, paths_name, health_name, legacy_source, service = sys.argv[1:]
+def values(path):
+    result = {}
+    for line in Path(path).read_text("utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        result[key.strip()] = value.strip().strip("\"'")
+    return result
+
+backup = values(backup_name)
+health = values(health_name)
+paths = {
+    line.strip() for line in Path(paths_name).read_text("utf-8").splitlines()
+    if line.strip() and not line.lstrip().startswith("#")
+}
+if (
+    backup.get("BACKUP_MODE") != "legacy"
+    or backup.get("LEGACY_SOURCE") != legacy_source
+    or backup.get("QUIESCE_SERVICE") != service
+    or legacy_source not in paths
+    or health.get("LAYOUT_MODE") != "legacy"
+    or health.get("LEGACY_SOURCE") != legacy_source
+    or health.get("SERVICE") != service
+):
+    raise SystemExit("recorded rollback configuration does not target legacy state")
+PY
+}
+
+validate_managed_activation_config() {
+    local release_root="$1" runtime_root="$2"
+    python3 - "$BACKUP_CONFIG" "$HEALTH_CONFIG" "$RUNTIME_LINK" \
+        "$release_root" "$runtime_root" "$LEGACY_SERVICE" <<'PY'
+import sys
+from pathlib import Path
+
+backup_name, health_name, runtime_link, release_root, runtime_root, service = (
+    sys.argv[1:]
+)
+def values(path):
+    result = {}
+    for line in Path(path).read_text("utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        result[key.strip()] = value.strip().strip("\"'")
+    return result
+
+backup = values(backup_name)
+health = values(health_name)
+allowlist = Path(backup.get("ALLOWLIST_FILE", "/etc/boudyos/backup-paths"))
+paths = [
+    line.strip() for line in allowlist.read_text("utf-8").splitlines()
+    if line.strip() and not line.lstrip().startswith("#")
+]
+if (
+    backup.get("BACKUP_MODE") != "managed"
+    or backup.get("BOUDYOS_RUNTIME_LINK") != runtime_link
+    or backup.get("BOUDYOS_RUNTIME_ROOT") != runtime_root
+    or backup.get("QUIESCE_SERVICE") != service
+    or paths.count(runtime_link) != 1
+    or health.get("LAYOUT_MODE") != "managed"
+    or health.get("RUNTIME_LINK") != runtime_link
+    or health.get("RELEASE_ROOT") != release_root
+    or health.get("WORKSPACE_ROOT") != runtime_root
+    or health.get("SERVICE") != service
+):
+    raise SystemExit("live activation configuration does not target managed state")
+PY
+}
+
+record_snapshot_path() {
+    python3 - "$RECORD" <<'PY'
+import json, os, stat, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+info = path.lstat()
+expected_uid = 0 if os.geteuid() == 0 else os.geteuid()
+if (
+    not stat.S_ISREG(info.st_mode)
+    or stat.S_ISLNK(info.st_mode)
+    or info.st_uid != expected_uid
+    or info.st_mode & 0o077
+    or info.st_size > 16384
+):
+    raise SystemExit(1)
+value = json.loads(path.read_text("utf-8"))
+if value.get("schema_version") != 2:
+    raise SystemExit(1)
+print(value["snapshot"])
+PY
+}
+
+restore_recorded_state() {
+    python3 - "$RECORD" "$OBSOLETE_SOURCE_LINK" "$RUNTIME_LINK" "$DROPIN" \
+        "$BACKUP_CONFIG" "$BACKUP_PATHS" "$HEALTH_CONFIG" <<'PY'
+import json
+import os
+import shutil
+import stat
+import sys
+from pathlib import Path
+
+record_name, source_name, runtime_name, dropin_name, backup, paths, health = sys.argv[1:]
+record = Path(record_name)
+info = record.lstat()
+expected_uid = 0 if os.geteuid() == 0 else os.geteuid()
+if (
+    not stat.S_ISREG(info.st_mode)
+    or stat.S_ISLNK(info.st_mode)
+    or info.st_uid != expected_uid
+    or info.st_mode & 0o077
+):
+    raise SystemExit("migration state ownership is unsafe")
+value = json.loads(record.read_text("utf-8"))
+if value.get("schema_version") != 2:
+    raise SystemExit("migration state schema is invalid")
+snapshot = Path(value["snapshot"]).resolve(strict=True)
+config_dir = snapshot / "config"
+
+if value.get("selector_policy") != "remove-managed-selectors-on-legacy-rollback":
+    raise SystemExit("migration selector policy is invalid")
+for path_name in (source_name, runtime_name):
+    try:
+        Path(path_name).unlink()
+    except FileNotFoundError:
+        pass
+Path(dropin_name).parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+if value["dropin"] == {"state": "file"}:
+    shutil.copy2(config_dir / "dropin", dropin_name, follow_symlinks=False)
+else:
+    try:
+        Path(dropin_name).unlink()
+    except FileNotFoundError:
+        pass
+for source, destination in (
+    (config_dir / "backup.conf", Path(backup)),
+    (config_dir / "backup-paths", Path(paths)),
+    (config_dir / "health.conf", Path(health)),
+):
+    destination.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+    temporary = destination.with_name("." + destination.name + ".migration-rollback")
+    shutil.copy2(source, temporary, follow_symlinks=False)
+    os.replace(temporary, destination)
+PY
+}
+
+restore_legacy_activation() {
+    local reason="$1" replaced_pid
+    replaced_pid="$(service_main_pid 2>/dev/null || printf '0')"
+    if ! stop_service_verified; then
+        echo "$reason; rollback was aborted because the service did not stop." >&2
+        return 1
+    fi
+    restore_recorded_state
+    systemctl daemon-reload
+    rm -f -- "$READY_FILE"
+    local started
+    started="$(date +%s)"
+    if ! systemctl start "$LEGACY_SERVICE" \
+        || ! wait_ready "$started" "$replaced_pid"; then
+        echo "$reason; original ultroid.service rollback also failed." >&2
+        return 1
+    fi
+    echo "$reason; original ultroid.service was restored." >&2
+    return 1
+}
+
+resume_legacy_after_prepare() {
+    if [[ "${was_active:-0}" == "1" ]]; then
+        rm -f -- "$READY_FILE"
+        local started
+        started="$(date +%s)"
+        if ! systemctl start "$LEGACY_SERVICE" \
+            || ! wait_ready "$started" "${old_pid:-0}"; then
+            echo "Migration preparation failed to establish a replaced ready legacy process." >&2
+            return 1
+        fi
+    fi
+}
+
+prepare() {
+    if [[ "$DRY_RUN" == "1" ]]; then
+        plan
+        return
+    fi
+    require_root
+    [[ -d "$LEGACY_SOURCE" && ! -L "$LEGACY_SOURCE" ]] || {
+        echo "Expected regular legacy source directory /opt/ultroid." >&2
+        return 1
+    }
+    [[ -f "$LEGACY_ENV" && ! -L "$LEGACY_ENV" ]] || {
+        echo "Expected regular legacy environment file." >&2
+        return 1
+    }
+    getent passwd "$LEGACY_USER" >/dev/null
+    local was_active=0 old_pid=0 snapshot stamp seed
+    if systemctl is-active --quiet "$LEGACY_SERVICE"; then
+        old_pid="$(service_main_pid 2>/dev/null || printf '0')"
+        if ! stop_service_verified; then
+            echo "Could not quiesce ultroid.service; migration was not prepared." >&2
+            return 1
+        fi
+        was_active=1
+        trap resume_legacy_after_prepare RETURN
+    fi
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    snapshot="$SNAPSHOT_ROOT/$stamp"
+    seed="$RUNTIME_ROOT/legacy-$stamp"
+    install -d -m 0700 "$SNAPSHOT_ROOT" "$snapshot" "$(dirname "$NEW_ENV")"
+    record_migration_state "$snapshot" "$seed"
+    validate_legacy_rollback_config "$snapshot"
+    install -d -o root -g "$LEGACY_GROUP" -m 0750 "$RUNTIME_ROOT"
+    install -d -o root -g "$LEGACY_GROUP" -m 0750 "$seed"
+    install -d -o "$LEGACY_USER" -g "$LEGACY_GROUP" -m 0700 "$seed/work"
+    local name
+    for name in addons downloads sessions db logs temp vcbot; do
+        install -d -o "$LEGACY_USER" -g "$LEGACY_GROUP" -m 0700 \
+            "$seed/work/$name"
+    done
+    install -d -o "$LEGACY_USER" -g "$LEGACY_GROUP" -m 0700 \
+        "$seed/work/resources"
+    for name in auth auths downloads; do
+        install -d -o "$LEGACY_USER" -g "$LEGACY_GROUP" -m 0700 \
+            "$seed/work/resources/$name"
+    done
+    cp -a --no-dereference -- "$LEGACY_SOURCE" "$snapshot/source"
+    cp -a --no-dereference -- "$LEGACY_ENV" "$snapshot/ultroid.env"
+    copy_legacy_mutable_state "$LEGACY_SOURCE" "$seed/work"
+    chown -R "$LEGACY_USER:$LEGACY_GROUP" "$seed/work"
+    find "$seed/work" -type d -exec chmod u+rwx,go-rwx {} +
+    find "$seed/work" -type f -exec chmod u+rw,go-rwx {} +
+    install -o root -g "$LEGACY_GROUP" -m 0640 "$LEGACY_ENV" "$NEW_ENV"
+    if [[ "$was_active" == "1" ]]; then
+        rm -f -- "$READY_FILE"
+        local started
+        started="$(date +%s)"
+        systemctl start "$LEGACY_SERVICE"
+        wait_ready "$started" "$old_pid"
+        was_active=0
+    fi
+    trap - RETURN
+    printf 'Prepared legacy runtime and root-only rollback snapshot.\n'
+}
+
+activate() {
+    if [[ "$DRY_RUN" == "1" ]]; then
+        plan
+        return
+    fi
+    require_root
+    [[ -r "$RECORD" && -f "$DEPLOY_CONFIG" && ! -L "$DEPLOY_CONFIG" ]] || {
+        echo "Prepare migration and install the root deploy configuration first." >&2
+        return 1
+    }
+    local config_uid config_mode
+    config_uid="$(stat -c %u "$DEPLOY_CONFIG")"
+    config_mode="$(stat -c %a "$DEPLOY_CONFIG")"
+    [[ "$config_uid" == "0" ]] || {
+        echo "Migration deploy config must be owned by root." >&2
+        return 1
+    }
+    (( (8#$config_mode & 022) == 0 )) || {
+        echo "Migration deploy config must not be group/world writable." >&2
+        return 1
+    }
+    # shellcheck source=/dev/null
+    source "$DEPLOY_CONFIG"
+    [[ "${BOUDYOS_RELEASE_COMMIT:-}" =~ ^[0-9a-f]{40}$ \
+        && "$BOUDYOS_RELEASE_COMMIT" != "0000000000000000000000000000000000000000" ]] || {
+        echo "A full release commit is required." >&2
+        return 1
+    }
+    local release_root="${BOUDYOS_RELEASE_ROOT:-/opt/boudyos/releases}"
+    local runtime_root="${BOUDYOS_RUNTIME_ROOT:-/var/lib/boudyos/workspaces}"
+    local -a staged_paths
+    mapfile -t staged_paths < <(
+        load_staged_release "$release_root" "$runtime_root" \
+            "$BOUDYOS_RELEASE_TAG" "$BOUDYOS_RELEASE_COMMIT"
+    ) || {
+        echo "Run boudyos-deploy stage; staged release state is invalid." >&2
+        return 1
+    }
+    [[ "${#staged_paths[@]}" == "2" ]] || {
+        echo "Run boudyos-deploy stage; staged release state is incomplete." >&2
+        return 1
+    }
+    local release="${staged_paths[0]}"
+    local runtime="${staged_paths[1]}"
+    local snapshot
+    snapshot="$(record_snapshot_path)" || {
+        echo "Migration rollback state is invalid." >&2
+        return 1
+    }
+    validate_legacy_rollback_config "$snapshot" || {
+        echo "Recorded legacy rollback configuration is invalid." >&2
+        return 1
+    }
+    validate_managed_activation_config "$release_root" "$runtime_root" || {
+        echo "Install managed backup/allowlist/health configuration before activation." >&2
+        return 1
+    }
+    if ! verify_staged_release \
+        "$release" "$runtime" "$BOUDYOS_RELEASE_TAG" "$BOUDYOS_RELEASE_COMMIT"; then
+        echo "Run boudyos-deploy stage; exact staged release verification failed." >&2
+        return 1
+    fi
+    local template="$release/ops/systemd/ultroid-boudyos.conf.example"
+    [[ -f "$template" && ! -L "$template" ]] || {
+        echo "Migration systemd drop-in template is unavailable." >&2
+        return 1
+    }
+    local old_pid
+    old_pid="$(service_main_pid 2>/dev/null || printf '0')"
+    if ! stop_service_verified; then
+        echo "Migration service stop failed; activation state was not changed." >&2
+        return 1
+    fi
+    copy_legacy_mutable_state "$LEGACY_SOURCE" "$runtime/work"
+    chown -R "$LEGACY_USER:$LEGACY_GROUP" "$runtime/work"
+    find "$runtime/work" -type d -exec chmod u+rwx,go-rwx {} +
+    find "$runtime/work" -type f -exec chmod u+rw,go-rwx {} +
+    if ! {
+        ln -sfn "$runtime" "$RUNTIME_LINK.new" &&
+        mv -Tf "$RUNTIME_LINK.new" "$RUNTIME_LINK" &&
+        rm -f -- "$OBSOLETE_SOURCE_LINK" &&
+        install -d -m 0755 "$DROPIN_DIR" &&
+        install -o root -g root -m 0644 "$template" "$DROPIN" &&
+        systemctl daemon-reload
+    }; then
+        restore_legacy_activation "Migration activation switch failed"
+        return 1
+    fi
+    if ! verify_staged_release \
+        "$release" "$runtime" "$BOUDYOS_RELEASE_TAG" "$BOUDYOS_RELEASE_COMMIT"; then
+        restore_legacy_activation "Migration target changed before service start"
+        return 1
+    fi
+    rm -f -- "$READY_FILE"
+    local started
+    started="$(date +%s)"
+    if ! systemctl start "$LEGACY_SERVICE"; then
+        restore_legacy_activation "Migration service start failed"
+        return 1
+    fi
+    if ! wait_ready "$started" "$old_pid"; then
+        restore_legacy_activation "Migration readiness failed"
+        return 1
+    fi
+    local status_dir="${BOUDYOS_STATUS_DIR:-/var/lib/boudyos/status}"
+    local app_status_dir="${BOUDYOS_APP_STATUS_DIR:-/var/lib/boudyos/app-status}"
+    install -d -o root -g "$LEGACY_GROUP" -m 0750 "$(dirname "$status_dir")"
+    install -d -o root -g "$LEGACY_GROUP" -m 0750 "$status_dir"
+    install -d -o "$LEGACY_USER" -g "$LEGACY_GROUP" -m 0700 "$app_status_dir"
+    local metadata_tmp
+    metadata_tmp="$(mktemp "$status_dir/.release.XXXXXX")"
+    printf '{"schema_version":1,"tag":"%s","commit":"%s","checked_at":"%s"}\n' \
+        "$BOUDYOS_RELEASE_TAG" "$BOUDYOS_RELEASE_COMMIT" \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$metadata_tmp"
+    chown "root:$LEGACY_GROUP" "$metadata_tmp"
+    chmod 0640 "$metadata_tmp"
+    mv -f -- "$metadata_tmp" "$status_dir/release.json"
+    printf 'Activated BoudyOS through ultroid.service; verify fresh readiness now.\n'
+}
+
+rollback_locked() {
+    if [[ "$DRY_RUN" == "1" ]]; then
+        plan
+        return
+    fi
+    require_root
+    [[ -r "$RECORD" ]] || {
+        echo "No migration rollback snapshot is recorded." >&2
+        return 1
+    }
+    local snapshot old_pid
+    snapshot="$(record_snapshot_path)" || {
+        echo "Migration rollback state is invalid." >&2
+        return 1
+    }
+    validate_legacy_rollback_config "$snapshot" || {
+        echo "Recorded legacy backup/health configuration is invalid." >&2
+        return 1
+    }
+    old_pid="$(service_main_pid 2>/dev/null || printf '0')"
+    if ! stop_service_verified; then
+        echo "Migration rollback stop failed; selectors and configuration were not changed." >&2
+        return 1
+    fi
+    restore_recorded_state
+    systemctl daemon-reload
+    rm -f -- "$READY_FILE"
+    local started
+    started="$(date +%s)"
+    if ! systemctl start "$LEGACY_SERVICE" \
+        || ! wait_ready "$started" "$old_pid"; then
+        echo "Legacy state was restored, but a replaced verified process was not established." >&2
+        return 1
+    fi
+    install -d -o root -g "$LEGACY_GROUP" -m 0750 "$STATUS_DIR"
+    local backup_tmp
+    backup_tmp="$(mktemp "$STATUS_DIR/.backup.XXXXXX")"
+    printf '{"schema_version":1,"state":"required","mode":"legacy","checked_at":"%s"}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$backup_tmp"
+    chown "root:$LEGACY_GROUP" "$backup_tmp"
+    chmod 0640 "$backup_tmp"
+    mv -f -- "$backup_tmp" "$BACKUP_STATUS"
+    rm -f -- "$STATUS_DIR/release.json"
+    printf 'Restored legacy service, selectors, and backup/health configuration; snapshot retained.\n'
+}
+
+prepare_transition() {
+    acquire_transition_lock
+    prepare
+}
+
+activate_transition() {
+    acquire_transition_lock
+    activate
+}
+
+rollback() {
+    if [[ "$DRY_RUN" == "1" ]]; then
+        plan
+        return
+    fi
+    require_root
+    acquire_transition_lock
+    rollback_locked
+}
+
+if [[ "${BOUDYOS_MIGRATION_LIB:-0}" != "1" ]]; then
+    case "${1:-}" in
+        plan) plan ;;
+        prepare) prepare_transition ;;
+        activate) activate_transition ;;
+        rollback) rollback ;;
+        *)
+            echo "Usage: $0 {plan|prepare|activate|rollback}" >&2
+            exit 2
+            ;;
+    esac
+fi

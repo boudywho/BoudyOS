@@ -27,7 +27,15 @@ from telethon.utils import get_peer_id
 
 from pyUltroid.fns.helper import fast_download, progress
 from pyUltroid.fns.tools import Carbon, async_searcher, get_paste, telegraph_client
+from pyUltroid.paths import OFFICIAL_ASSISTANT, source_resource
 from pyUltroid.startup.loader import Loader
+from pyUltroid.security.updater import (
+    check_for_update,
+    format_changelog_report,
+    format_update_report,
+    request_deployment,
+)
+from pyUltroid.security.status import write_update_status
 
 from . import *
 
@@ -245,7 +253,7 @@ TOKEN_FILE = "resources/auths/auth_token.txt"
 )
 async def send(eve):
     key, name = (eve.data_match.group(1)).decode("UTF-8").split("_")
-    thumb = "resources/extras/inline.jpg"
+    thumb = str(source_resource("extras", "inline.jpg"))
     await eve.answer("■ Sending ■")
     data = f"uh_{key}_"
     index = None
@@ -274,102 +282,44 @@ async def send(eve):
         await eve.answer(str(er), alert=True)
 
 
-heroku_api, app_name = Var.HEROKU_API, Var.HEROKU_APP_NAME
-
-
 @callback("updatenow", owner=True)
 async def update(eve):
-    repo = Repo()
-    ac_br = repo.active_branch
-    ups_rem = repo.remote("upstream")
-    if heroku_api:
-        import heroku3
-
-        try:
-            heroku = heroku3.from_key(heroku_api)
-            heroku_app = None
-            heroku_applications = heroku.apps()
-        except BaseException as er:
-            LOGS.exception(er)
-            return await eve.edit("`Wrong HEROKU_API.`")
-        for app in heroku_applications:
-            if app.name == app_name:
-                heroku_app = app
-        if not heroku_app:
-            await eve.edit("`Wrong HEROKU_APP_NAME.`")
-            repo.__del__()
-            return
-        await eve.edit(get_string("clst_1"))
-        ups_rem.fetch(ac_br)
-        repo.git.reset("--hard", "FETCH_HEAD")
-        heroku_git_url = heroku_app.git_url.replace(
-            "https://", f"https://api:{heroku_api}@"
+    state = await check_for_update()
+    write_update_status(state)
+    helper = udB.get_key("BOUDYOS_DEPLOY_HELPER") or os.environ.get(
+        "BOUDYOS_DEPLOY_HELPER"
+    )
+    if not helper:
+        return await eve.edit(
+            format_update_report(state)
+            + "\n\nNo privileged deployment helper is configured; this button "
+            "cannot mutate the running checkout."
         )
-
-        if "heroku" in repo.remotes:
-            remote = repo.remote("heroku")
-            remote.set_url(heroku_git_url)
-        else:
-            remote = repo.create_remote("heroku", heroku_git_url)
-        try:
-            remote.push(refspec=f"HEAD:refs/heads/{ac_br}", force=True)
-        except GitCommandError as error:
-            await eve.edit(f"`Here is the error log:\n{error}`")
-            repo.__del__()
-            return
-        await eve.edit("`Successfully Updated!\nRestarting, please wait...`")
-    else:
-        await eve.edit(get_string("clst_1"))
-        call_back()
-        await bash("git pull && pip3 install -r requirements.txt")
-        await bash("pip3 install -r requirements.txt --break-system-packages")
-        execl(sys.executable, sys.executable, "-m", "pyUltroid")
+    if state.dirty or not state.update_available:
+        return await eve.edit(format_update_report(state))
+    try:
+        result = await request_deployment(str(helper))
+    except (OSError, ValueError) as exc:
+        LOGS.warning("Deployment helper request refused: %s", exc)
+        return await eve.edit("`Deployment helper configuration was refused.`")
+    if result.ok:
+        return await eve.edit(
+            "`Deployment was requested. The root-managed helper will activate "
+            "only after preflight checks and will roll back on readiness failure.`"
+        )
+    await eve.edit("`The deployment helper rejected the request.`")
 
 @callback(re.compile("changes(.*)"), owner=True)
 async def changes(okk):
-    match = okk.data_match.group(1).decode("utf-8")
+    okk.data_match.group(1).decode("utf-8")
     await okk.answer(get_string("clst_3"))
-    repo = Repo.init()
+    state = await check_for_update()
+    write_update_status(state)
+    report, link = format_changelog_report(state)
     button = [[Button.inline("Update Now", data="updatenow")]]
-    changelog, tl_chnglog = await gen_chlog(
-        repo, f"HEAD..upstream/{repo.active_branch}"
-    )
-    cli = "\n\nClick the below button to update!"
-    if not match:
-        try:
-            if len(tl_chnglog) > 700:
-                tl_chnglog = f"{tl_chnglog[:700]}..."
-                button.append([Button.inline("View Complete", "changesall")])
-            await okk.edit("• Writing Changelogs 📝 •")
-            img = await Carbon(
-                file_name="changelog",
-                code=tl_chnglog,
-                backgroundColor=choice(ATRA_COL),
-                language="md",
-            )
-            return await okk.edit(
-                f"**BoudyOS**{cli}", file=img, buttons=button
-            )
-        except Exception as er:
-            LOGS.exception(er)
-    changelog_str = changelog + cli
-    if len(changelog_str) > 1024:
-        await okk.edit(get_string("upd_4"))
-        await asyncio.sleep(2)
-        with open("ultroid_updates.txt", "w+") as file:
-            file.write(tl_chnglog)
-        await okk.edit(
-            get_string("upd_5"),
-            file="ultroid_updates.txt",
-            buttons=button,
-        )
-        remove("ultroid_updates.txt")
-        return
-    await okk.edit(
-        changelog_str,
-        buttons=button,
-        parse_mode="html",
-    )
+    if link:
+        button.append([Button.url("Release details", link)])
+    await okk.edit(report, buttons=button)
 
 
 @callback(
@@ -1190,7 +1140,7 @@ async def name(event):
 async def chon(event):
     var = "PMBOT"
     await setit(event, var, "True")
-    Loader(path="assistant/pmbot.py", key="PM Bot").load()
+    Loader(path=OFFICIAL_ASSISTANT / "pmbot.py", key="PM Bot").load()
     if AST_PLUGINS.get("pmbot"):
         for i, e in AST_PLUGINS["pmbot"]:
             event.client.remove_event_handler(i)

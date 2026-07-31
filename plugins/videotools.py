@@ -19,8 +19,11 @@
 
 import glob
 import os
+import shutil
 
 from pyUltroid.fns.tools import set_attributes
+from pyUltroid.security.paths import cli_path
+from pyUltroid.security.subprocess import run_exec
 
 from . import (
     ULTConfig,
@@ -49,8 +52,16 @@ async def gen_sample(e):
         out = file_name.replace(file_name.split(".")[-1], "_sample.mkv")
         xxx = await msg.edit(f"Generating Sample of `{stime}` seconds...")
         ss, dd = await duration_s(file.name, stime)
-        cmd = f'ffmpeg -i "{file.name}" -preset ultrafast -ss {ss} -to {dd} -codec copy -map 0 "{out}" -y'
-        await bash(cmd)
+        result = await run_exec(
+            [
+                "ffmpeg", "-i", cli_path(file.name), "-preset", "ultrafast",
+                "-ss", ss, "-to", dd, "-codec", "copy", "-map", "0",
+                cli_path(out), "-y",
+            ],
+            timeout=300,
+        )
+        if not result.ok:
+            return await xxx.edit("`ffmpeg failed to generate the sample.`")
         os.remove(file.name)
         attributes = await set_attributes(out)
         mmmm, _ = await e.client.fast_uploader(
@@ -82,9 +93,15 @@ async def gen_shots(e):
             vido.document, show_progress=True, event=msg
         )
         xxx = await msg.edit(f"Generating `{shot}` screenshots...")
-        await bash("rm -rf ss && mkdir ss")
-        cmd = f'ffmpeg -i "{file.name}" -vf fps=0.009 -vframes {shot} "ss/pic%01d.png"'
-        await bash(cmd)
+        shutil.rmtree("ss", ignore_errors=True)
+        os.mkdir("ss")
+        result = await run_exec(
+            [
+                "ffmpeg", "-i", cli_path(file.name), "-vf", "fps=0.009", "-vframes",
+                str(shot), "ss/pic%01d.png",
+            ],
+            timeout=300,
+        )
         os.remove(file.name)
         pic = glob.glob("ss/*")
         text = f"Uploaded {len(pic)}/{shot} screenshots"
@@ -92,7 +109,7 @@ async def gen_shots(e):
             text = "`Failed to Take Screenshots..`"
             pic = None
         await e.respond(text, file=pic)
-        await bash("rm -rf ss")
+        shutil.rmtree("ss", ignore_errors=True)
         await xxx.delete()
 
 
@@ -117,8 +134,16 @@ async def gen_sample(e):
             return await eod(msg, get_string("audiotools_6"))
         ss, dd = stdr(int(a)), stdr(int(b))
         xxx = await msg.edit(f"Trimming Video from `{ss}` to `{dd}`...")
-        cmd = f'ffmpeg -i "{file.name}" -preset ultrafast -ss {ss} -to {dd} -codec copy -map 0 "{out}" -y'
-        await bash(cmd)
+        result = await run_exec(
+            [
+                "ffmpeg", "-i", cli_path(file.name), "-preset", "ultrafast",
+                "-ss", ss, "-to", dd, "-codec", "copy", "-map", "0",
+                cli_path(out), "-y",
+            ],
+            timeout=300,
+        )
+        if not result.ok:
+            return await xxx.edit("`ffmpeg failed to trim the video.`")
         os.remove(file.name)
         attributes = await set_attributes(out)
         mmmm, _ = await e.client.fast_uploader(

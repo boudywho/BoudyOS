@@ -41,6 +41,7 @@ from telethon.tl.functions.messages import EditChatDefaultBannedRightsRequest
 from telethon.tl.types import ChatBannedRights
 
 from pyUltroid.dB.base import KeyManager
+from pyUltroid.security.parsing import parse_night_time, validate_night_time
 
 from . import get_string, udB, ultroid_bot, ultroid_cmd
 
@@ -55,7 +56,7 @@ async def set_time(e):
         ok = e.text.split(maxsplit=1)[1].split()
         if len(ok) != 4:
             return await e.eor(get_string("nightm_1"))
-        tm = [int(x) for x in ok]
+        tm = list(validate_night_time([int(x) for x in ok]))
         udB.set_key("NIGHT_TIME", str(tm))
         await e.eor(get_string("nightm_2"))
     except BaseException:
@@ -123,9 +124,13 @@ async def open_grp():
 
 
 async def close_grp():
-    __, _, h2, m2 = 0, 0, 7, 0
-    if udB.get_key("NIGHT_TIME"):
-        _, __, h2, m2 = eval(udB.get_key("NIGHT_TIME"))
+    raw_time = udB.get_key("NIGHT_TIME")
+    _, __, h2, m2 = parse_night_time(raw_time)
+    if raw_time:
+        try:
+            validate_night_time(raw_time)
+        except ValueError:
+            LOGS.warning("Ignoring malformed NIGHT_TIME; using the safe default.")
     for chat in keym.get():
         try:
             await ultroid_bot(
@@ -147,8 +152,13 @@ async def close_grp():
 if AsyncIOScheduler and keym.get():
     try:
         h1, m1, h2, m2 = 0, 0, 7, 0
-        if udB.get_key("NIGHT_TIME"):
-            h1, m1, h2, m2 = eval(udB.get_key("NIGHT_TIME"))
+        raw_time = udB.get_key("NIGHT_TIME")
+        if raw_time:
+            h1, m1, h2, m2 = parse_night_time(raw_time)
+            try:
+                validate_night_time(raw_time)
+            except ValueError:
+                LOGS.warning("Ignoring malformed NIGHT_TIME; using the safe default.")
         sch = AsyncIOScheduler()
         sch.add_job(close_grp, trigger="cron", hour=h1, minute=m1)
         sch.add_job(open_grp, trigger="cron", hour=h2, minute=m2)

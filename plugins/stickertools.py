@@ -49,6 +49,8 @@ from telethon.tl.types import (
     InputPeerSelf,
 )
 from telethon.utils import get_input_document
+from pyUltroid.security.subprocess import run_exec
+from pyUltroid.paths import source_resource
 
 from . import (
     KANGING_STR,
@@ -424,7 +426,11 @@ async def ultdestroy(event):
         return await event.eor(get_string("sts_2"))
     await event.client.download_media(ult, "ultroid.tgs")
     xx = await event.eor(get_string("com_1"))
-    await bash("lottie_convert.py ultroid.tgs json.json")
+    result = await run_exec(
+        ["lottie_convert.py", "ultroid.tgs", "json.json"], timeout=120
+    )
+    if not result.ok:
+        return await xx.edit("`Animated sticker conversion failed.`")
     with open("json.json") as json:
         jsn = json.read()
     jsn = (
@@ -465,7 +471,7 @@ async def ultiny(event):
         return
     xx = await event.eor(get_string("com_1"))
     ik = await reply.download_media()
-    im1 = Image.open("resources/extras/ultroid_blank.png")
+    im1 = Image.open(source_resource("extras", "ultroid_blank.png"))
     if ik.endswith(".tgs"):
         await con.animated_sticker(ik, "json.json")
         with open("json.json") as json:

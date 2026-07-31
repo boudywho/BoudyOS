@@ -17,8 +17,9 @@ from telethon.utils import get_display_name
 from urllib.parse import urlencode
 from . import Carbon, ultroid_cmd, get_string, inline_mention
 from secrets import token_hex
+from pyUltroid.paths import source_resource
 
-_colorspath = "resources/colorlist.txt"
+_colorspath = str(source_resource("colorlist.txt"))
 
 if os.path.exists(_colorspath):
     with open(_colorspath, "r") as f:

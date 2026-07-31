@@ -1,0 +1,3 @@
+# Absolute paths only. Never add /.
+/var/lib/boudyos/current
+/etc/boudyos/runtime.env

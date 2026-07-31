@@ -23,7 +23,20 @@
 
 """
 import os
+import shutil
 import time
+import zipfile
+from pathlib import Path
+
+from pyUltroid.security.paths import (
+    UnsafePathError,
+    cli_path,
+    zip_command,
+    extract_archive,
+    private_workspace,
+    resolve_under,
+)
+from pyUltroid.security.subprocess import run_exec
 
 from . import (
     HNDLR,
@@ -57,11 +70,16 @@ async def zipp(event):
             file = await event.download_media(reply)
     inp = file.replace(file.split(".")[-1], "zip")
     if event.pattern_match.group(1).strip():
-        await bash(
-            f"zip -r --password {event.pattern_match.group(1).strip()} {inp} {file}"
+        result = await run_exec(
+            zip_command(file, inp, event.pattern_match.group(1).strip()),
+            timeout=300,
         )
     else:
-        await bash(f"zip -r {inp} {file}")
+        with zipfile.ZipFile(inp, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.write(file, arcname=Path(file).name)
+        result = None
+    if result is not None and not result.ok:
+        return await xx.edit("`Archive creation failed.`")
     k = time.time()
     n_file, _ = await event.client.fast_uploader(
         inp, show_progress=True, event=event, message="Uploading...", to_delete=True
@@ -92,30 +110,42 @@ async def unzipp(event):
         if not hasattr(reply.media, "document"):
             return await xx.edit(get_string("zip_3"))
         file = reply.media.document
-        if not reply.file.name.endswith(("zip", "rar", "exe")):
+        if not reply.file.name.lower().endswith((".zip", ".tar", ".tar.gz", ".tgz")):
             return await xx.edit(get_string("zip_3"))
         image = await downloader(
             reply.file.name, reply.media.document, xx, t, get_string("com_5")
         )
         file = image.name
-    if os.path.isdir("unzip"):
-        await bash("rm -rf unzip")
-    os.mkdir("unzip")
-    await bash(f"7z x {file} -aoa -ounzip")
-    await asyncio.sleep(4)
-    ok = get_all_files("unzip")
-    for x in ok:
-        k = time.time()
-        n_file, _ = await event.client.fast_uploader(
-            x, show_progress=True, event=event, message="Uploading...", to_delete=True
+    try:
+        with private_workspace(Path.cwd(), ".boudyos-unzip-") as command_dir:
+            archive_path = resolve_under(Path.cwd(), file, must_exist=True)
+            extracted = extract_archive(
+                archive_path,
+                command_dir.name + "/content",
+                workspace=Path.cwd(),
+            )
+            for x in get_all_files(str(extracted)):
+                n_file, _ = await event.client.fast_uploader(
+                    x,
+                    show_progress=True,
+                    event=event,
+                    message="Uploading...",
+                    to_delete=True,
+                )
+                await event.client.send_file(
+                    event.chat_id,
+                    n_file,
+                    force_document=True,
+                    thumb=ULTConfig.thumb,
+                    caption=f"`{n_file.name}`",
+                )
+    except (UnsafePathError, OSError, ValueError, zipfile.BadZipFile):
+        return await xx.edit(
+            "`Archive rejected: unsupported, corrupt, encrypted, or unsafe paths.`"
         )
-        await event.client.send_file(
-            event.chat_id,
-            n_file,
-            force_document=True,
-            thumb=ULTConfig.thumb,
-            caption=f"`{n_file.name}`",
-        )
+    finally:
+        if reply and reply.media:
+            Path(file).unlink(missing_ok=True)
     await xx.delete()
 
 
@@ -154,11 +184,19 @@ async def do_zip(event):
         return await event.eor(get_string("zip_2").format(HNDLR))
     xx = await event.eor(get_string("com_1"))
     if event.pattern_match.group(1).strip():
-        await bash(
-            f"zip -r --password {event.pattern_match.group(1).strip()} ultroid.zip zip/*"
+        result = await run_exec(
+            zip_command("zip", "ultroid.zip", event.pattern_match.group(1).strip()),
+            timeout=300,
         )
+        if not result.ok:
+            return await xx.edit("`Archive creation failed.`")
     else:
-        await bash("zip -r ultroid.zip zip/*")
+        with zipfile.ZipFile(
+            "ultroid.zip", "w", compression=zipfile.ZIP_DEFLATED
+        ) as archive:
+            for path in Path("zip").rglob("*"):
+                if path.is_file() and not path.is_symlink():
+                    archive.write(path, arcname=path.relative_to("zip"))
     k = time.time()
     xxx = await uploader("ultroid.zip", "ultroid.zip", k, xx, get_string("com_6"))
     await event.client.send_file(
@@ -167,6 +205,6 @@ async def do_zip(event):
         force_document=True,
         thumb=ULTConfig.thumb,
     )
-    await bash("rm -rf zip")
+    shutil.rmtree("zip", ignore_errors=True)
     os.remove("ultroid.zip")
     await xx.delete()

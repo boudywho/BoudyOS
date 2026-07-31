@@ -1,0 +1,4 @@
+# Explicit developer/experimental profile dependencies.
+black>=24
+htmlwebshot
+tabulate>=0.9

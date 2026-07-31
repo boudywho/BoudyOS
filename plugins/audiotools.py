@@ -11,6 +11,8 @@ import time
 from datetime import datetime as dt
 
 from pyUltroid.fns.tools import set_attributes
+from pyUltroid.security.paths import cli_path
+from pyUltroid.security.subprocess import run_exec
 
 from . import (
     LOGS,
@@ -44,9 +46,15 @@ async def vnc(e):
         r.document,
     )
     await xxx.edit(get_string("audiotools_2"))
-    await bash(
-        f"ffmpeg -i '{file.name}' -map 0:a -codec:a libopus -b:a 100k -vbr on out.opus"
+    result = await run_exec(
+        [
+            "ffmpeg", "-i", cli_path(file.name), "-map", "0:a", "-codec:a", "libopus",
+            "-b:a", "100k", "-vbr", "on", "out.opus",
+        ],
+        timeout=300,
     )
+    if not result.ok:
+        return await xxx.edit("`ffmpeg failed to create the voice file.`")
     try:
         await e.client.send_message(
             e.chat_id, file="out.opus", force_document=False, reply_to=r
@@ -99,8 +107,16 @@ async def trim_aud(e):
         xxx = await xxx.edit(
             f"Downloaded `{file.name}` of `{humanbytes(o_size)}` in `{diff}`.\n\nNow Trimming Audio from `{ss}` to `{dd}`..."
         )
-        cmd = f'ffmpeg -i "{file.name}" -preset ultrafast -ss {ss} -to {dd} -vn -acodec copy "{out}" -y'
-        await bash(cmd)
+        result = await run_exec(
+            [
+                "ffmpeg", "-i", cli_path(file.name), "-preset", "ultrafast",
+                "-ss", ss, "-to", dd, "-vn", "-acodec", "copy",
+                cli_path(out), "-y",
+            ],
+            timeout=300,
+        )
+        if not result.ok:
+            return await xxx.edit("`ffmpeg failed to trim the audio.`")
         os.remove(file.name)
         f_time = time.time()
         n_file, _ = await e.client.fast_uploader(
@@ -141,8 +157,16 @@ async def ex_aud(e):
     )
 
     out_file = f"{file.name}.aac"
-    cmd = f"ffmpeg -i {file.name} -vn -acodec copy {out_file}"
-    o, err = await bash(cmd)
+    result = await run_exec(
+        [
+            "ffmpeg", "-i", cli_path(file.name), "-vn", "-acodec", "copy",
+            cli_path(out_file),
+        ],
+        timeout=300,
+    )
+    if not result.ok:
+        os.remove(file.name)
+        return await eor(msg, "`ffmpeg failed to extract audio.`")
     os.remove(file.name)
     attributes = await set_attributes(out_file)
 

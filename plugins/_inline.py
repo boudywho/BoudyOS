@@ -7,18 +7,32 @@
 
 import re
 import time
+import os
 from datetime import datetime
 from os import remove
+from pathlib import Path
 
-from git import Repo
 from telethon import Button
 from telethon.tl.types import InputWebDocument, Message
 from telethon.utils import resolve_bot_file_id
 
 from pyUltroid._misc._assistant import callback, in_pattern
 from pyUltroid.dB._core import HELP, LIST
-from pyUltroid.fns.helper import gen_chlog, time_formatter, updater
+from pyUltroid.fns.helper import time_formatter
 from pyUltroid.fns.misc import split_list
+from pyUltroid.paths import OFFICIAL_PLUGINS
+from pyUltroid.security.status import (
+    dashboard_summary,
+    read_bounded_status,
+    status_dir,
+    write_update_status,
+)
+from pyUltroid.security.updater import (
+    UpdateState,
+    check_for_update,
+    format_changelog_report,
+)
+from pyUltroid.version import ultroid_version
 
 from . import (
     HNDLR,
@@ -45,6 +59,44 @@ PLUGINS = HELP.get("Official", [])
 ADDONS = HELP.get("Addons", [])
 upage = 0
 # ============================================#
+
+
+def _dashboard_text():
+    commands = []
+    for names in LIST.values():
+        commands.extend(names)
+    official = len(HELP.get("Official", []))
+    addons = len(HELP.get("Addons", []))
+    base = get_string("inline_4").format(
+        OWNER_NAME, official, addons, len(commands)
+    )
+    update_data = read_bounded_status(status_dir() / "update.json")
+    update_state = UpdateState(str(update_data.get("state", "unknown")))
+    total_official = len(
+        [
+            path
+            for path in OFFICIAL_PLUGINS.glob("*.py")
+            if path.name != "__init__.py"
+        ]
+    )
+    try:
+        redis_healthy = bool(udB.ping())
+    except Exception:
+        redis_healthy = False
+    try:
+        assistant_healthy = bool(asst.is_connected())
+    except Exception:
+        assistant_healthy = False
+    return base + dashboard_summary(
+        version=ultroid_version,
+        started_at=start_time,
+        official_count=official,
+        addon_count=addons,
+        disabled_count=max(0, total_official - official),
+        update=update_state,
+        redis_healthy=redis_healthy,
+        assistant_healthy=assistant_healthy,
+    )
 
 # --------------------BUTTONS--------------------#
 
@@ -93,12 +145,7 @@ async def inline_handler(event):
     z = []
     for x in LIST.values():
         z.extend(x)
-    text = get_string("inline_4").format(
-        OWNER_NAME,
-        len(HELP.get("Official", [])),
-        len(HELP.get("Addons", [])),
-        len(z),
-    )
+    text = _dashboard_text()
     if inline_pic():
         result = await event.builder.photo(
             file=inline_pic(),
@@ -141,12 +188,7 @@ async def setting(event):
     for x in LIST.values():
         z.extend(x)
     await event.edit(
-        get_string("inline_4").format(
-            OWNER_NAME,
-            len(HELP.get("Official", [])),
-            len(HELP.get("Addons", [])),
-            len(z),
-        ),
+        _dashboard_text(),
         file=inline_pic(),
         link_preview=False,
         buttons=[
@@ -232,37 +274,20 @@ async def uptd_plugin(event):
 
 @callback(data="doupdate", owner=True)
 async def _(event):
-    if not await updater():
+    state = await check_for_update()
+    write_update_status(state)
+    if not state.update_available:
         return await event.answer(get_string("inline_9"), cache_time=0, alert=True)
     if not inline_pic():
         return await event.answer(f"Do '{HNDLR}update' to update..")
-    repo = Repo.init()
-    changelog, tl_chnglog = await gen_chlog(
-        repo, f"HEAD..upstream/{repo.active_branch}"
-    )
-    changelog_str = changelog + "\n\n" + get_string("inline_8")
-    if len(changelog_str) > 1024:
-        await event.edit(get_string("upd_4"))
-        with open("ultroid_updates.txt", "w+") as file:
-            file.write(tl_chnglog)
-        await event.edit(
-            get_string("upd_5"),
-            file="ultroid_updates.txt",
-            buttons=[
-                [Button.inline("Update now", data="updatenow")],
-                [Button.inline("Back", data="ownr")],
-            ],
-        )
-        remove("ultroid_updates.txt")
-    else:
-        await event.edit(
-            changelog_str,
-            buttons=[
-                [Button.inline("Update Now", data="updatenow")],
-                [Button.inline("Back", data="ownr")],
-            ],
-            parse_mode="html",
-        )
+    report, link = format_changelog_report(state)
+    buttons = [
+        [Button.inline("Update Now", data="updatenow")],
+        [Button.inline("Back", data="ownr")],
+    ]
+    if link:
+        buttons.insert(1, [Button.url("Release details", link)])
+    await event.edit(report, buttons=buttons)
 
 
 @callback(data="pkng", owner=True)
@@ -304,12 +329,7 @@ async def opner(event):
     for x in LIST.values():
         z.extend(x)
     await event.edit(
-        get_string("inline_4").format(
-            OWNER_NAME,
-            len(HELP.get("Official", [])),
-            len(HELP.get("Addons", [])),
-            len(z),
-        ),
+        _dashboard_text(),
         buttons=_main_help_menu,
         link_preview=False,
     )

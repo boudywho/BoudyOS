@@ -1,6 +1,7 @@
 import os
 import sys
 from glob import glob
+from pathlib import Path
 from typing import Any, Dict, List, Union
 
 from pyUltroid import *
@@ -14,7 +15,8 @@ except ModuleNotFoundError:
 ULTConfig.lang = udB.get_key("language") or os.getenv("LANGUAGE", "en")
 
 languages = {}
-PATH = "strings/strings/{}.yml"
+STRINGS_ROOT = Path(__file__).resolve().parent / "strings"
+PATH = str(STRINGS_ROOT / "{}.yml")
 
 
 def load(file):
@@ -70,7 +72,7 @@ def get_help(key):
 
 
 def get_languages() -> Dict[str, Union[str, List[str]]]:
-    for file in glob("strings/strings/*yml"):
+    for file in glob(str(STRINGS_ROOT / "*yml")):
         load(file)
     return {
         code: {

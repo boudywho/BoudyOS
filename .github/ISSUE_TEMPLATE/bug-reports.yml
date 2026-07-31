@@ -1,6 +1,6 @@
 name: Bug Report
-description: File a bug report
-title: "[BUG REPORT]"
+description: Report a reproducible BoudyOS defect without secrets
+title: "[Bug] "
 labels: [bug]
 body:
   - type: markdown
@@ -11,8 +11,7 @@ body:
     id: contact
     attributes:
       label: Contact Details
-      description: Your telegram username or email ID.
-      placeholder: ex. @username or email@example.com
+      description: Optional contact. Do not include private Telegram identifiers.
     validations:
       required: false
   - type: textarea
@@ -28,12 +27,11 @@ body:
     id: version
     attributes:
       label: Version
-      description: What version of Ultroid are you running?
+      description: What BoudyOS version are you running?
       options:
-        - "0.5"
-        - "0.6"
-        - "0.7"
-        - "> 0.7"
+        - "2.2.0"
+        - "2.1.2"
+        - "Development checkout"
 
     validations:
       required: true
@@ -41,28 +39,30 @@ body:
     id: hosted
     attributes:
       label: Hosted On
-      description: You are hosting Ultroid on Which Platform?
+      description: Which BoudyOS deployment method are you using?
       options:
-        - Vps
+        - Native systemd
+        - Docker
+        - VPS (manual)
         - Heroku
         - Railway
-        - Qovery
         - Termux
         - Other
-        - Didn't Deployed Yet
+        - Not deployed yet
     validations:
       required: true
   - type: textarea
     id: logs
     attributes:
       label: Relevant logs output
-      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      description: Include only the smallest manually sanitized excerpt; do not paste raw logs.
+      placeholder: Remove tokens, sessions, URLs/passwords, paths, chat IDs, and private identifiers.
       render: shell
   - type: checkboxes
     id: terms
     attributes:
       label: Acknowledgement
-      description: By submitting this issue, you agree that you have read the [docs](https://ultroid.tech) and gone through the [deploy tutorial](https://www.youtube.com/watch?v=9wF7k9qA0Q4) at first.
+      description: Confirm that the report follows the BoudyOS support and security guidance.
       options:
-        - label: I have followed all of the above steps.
+        - label: I removed secrets and private identifiers and reviewed SUPPORT.md.
           required: true

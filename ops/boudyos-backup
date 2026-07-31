@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+readonly CONFIG_FILE="${BOUDYOS_BACKUP_CONFIG:-/etc/boudyos/backup.conf}"
+[[ -r "$CONFIG_FILE" ]] || {
+    echo "Backup configuration is not readable." >&2
+    exit 1
+}
+# shellcheck source=/dev/null
+source "$CONFIG_FILE"
+
+: "${AGE_RECIPIENT:?AGE_RECIPIENT must be configured; plaintext fallback is forbidden}"
+: "${HMAC_KEY_FILE:?HMAC_KEY_FILE must be configured}"
+[[ -r "$HMAC_KEY_FILE" ]] || {
+    echo "Backup authentication key is not readable." >&2
+    exit 1
+}
+readonly BACKUP_DIR="${BACKUP_DIR:-/var/backups/boudyos}"
+readonly ALLOWLIST_FILE="${ALLOWLIST_FILE:-/etc/boudyos/backup-paths}"
+readonly REDIS_ENV_FILE="${REDIS_ENV_FILE:-/etc/boudyos/redis.env}"
+readonly BACKUP_MODE="${BACKUP_MODE:-managed}"
+readonly LEGACY_SOURCE="${LEGACY_SOURCE:-/opt/ultroid}"
+readonly RUNTIME_ROOT="${BOUDYOS_RUNTIME_ROOT:-/var/lib/boudyos/workspaces}"
+readonly RUNTIME_LINK="${BOUDYOS_RUNTIME_LINK:-/var/lib/boudyos/current}"
+readonly STATUS_DIR="${BOUDYOS_STATUS_DIR:-/var/lib/boudyos/status}"
+readonly STATE_ROOT="${BOUDYOS_STATE_ROOT:-$(dirname "$STATUS_DIR")}"
+readonly STATUS_FILE="${BACKUP_STATUS_FILE:-$STATUS_DIR/backup.json}"
+readonly STATUS_GROUP="${BOUDYOS_STATUS_GROUP:-boudyos}"
+readonly LOCK_FILE="${BACKUP_LOCK_FILE:-/run/lock/boudyos/backup.lock}"
+readonly OPS_HELPER="${BOUDYOS_OPS_HELPER:-/usr/local/lib/boudyos/boudyos_ops.py}"
+readonly QUIESCE_SERVICE="${QUIESCE_SERVICE:-boudyos.service}"
+
+[[ "$BACKUP_MODE" == "managed" || "$BACKUP_MODE" == "legacy" ]] || {
+    echo "Backup mode must be managed or legacy." >&2
+    exit 1
+}
+
+command -v age >/dev/null || {
+    echo "age is required; no backup was created." >&2
+    exit 1
+}
+[[ -r "$ALLOWLIST_FILE" ]] || {
+    echo "Backup allowlist is not readable." >&2
+    exit 1
+}
+[[ -r "$OPS_HELPER" ]] || {
+    echo "BoudyOS backup policy helper is unavailable." >&2
+    exit 1
+}
+
+install -d -o root -g root -m 0700 "$BACKUP_DIR"
+install -d -m 0750 "$(dirname "$LOCK_FILE")"
+install -d -o root -g "$STATUS_GROUP" -m 0750 \
+    "$STATE_ROOT" "$(dirname "$STATUS_FILE")"
+exec 9>"$LOCK_FILE"
+flock -n 9 || {
+    echo "Another backup is active." >&2
+    exit 1
+}
+
+stage="$(mktemp -d /tmp/boudyos-backup.XXXXXX)"
+service_stopped=0
+temporary=""
+signature_temporary=""
+cleanup() {
+    local result=$?
+    if [[ "$service_stopped" == "1" ]]; then
+        if ! systemctl start "$QUIESCE_SERVICE" >/dev/null 2>&1; then
+            echo "Backup failed and the quiesced service could not be restarted." >&2
+            result=1
+        fi
+    fi
+    if [[ -n "$temporary" ]]; then
+        rm -f -- "$temporary"
+    fi
+    if [[ -n "$signature_temporary" ]]; then
+        rm -f -- "$signature_temporary"
+    fi
+    rm -rf --one-file-system -- "$stage"
+    trap - EXIT
+    exit "$result"
+}
+trap cleanup EXIT
+install -d -m 0700 "$stage/runtime" "$stage/redis" "$stage/release"
+
+if [[ -r "$REDIS_ENV_FILE" ]]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$REDIS_ENV_FILE"
+    set +a
+fi
+if command -v redis-cli >/dev/null && [[ -n "${REDIS_HOST:-}" ]]; then
+    export REDISCLI_AUTH="${REDIS_PASSWORD:-}"
+    timeout 60 redis-cli -h "$REDIS_HOST" -p "${REDIS_PORT:-6379}" \
+        --user "${REDIS_USER:-default}" --rdb "$stage/redis/dump.rdb" >/dev/null
+    unset REDISCLI_AUTH
+else
+    echo "A native Redis --rdb export is required." >&2
+    exit 1
+fi
+
+if systemctl is-active --quiet "$QUIESCE_SERVICE"; then
+    systemctl stop "$QUIESCE_SERVICE"
+    service_stopped=1
+fi
+active_source_seen=0
+resolved_source=""
+while IFS= read -r configured_path; do
+    [[ -z "$configured_path" || "$configured_path" == \#* ]] && continue
+    [[ "$configured_path" == /* && "$configured_path" != "/" && -e "$configured_path" ]] || {
+        echo "Invalid or missing backup allowlist entry." >&2
+        exit 1
+    }
+    if [[ "$BACKUP_MODE" == "managed" \
+        && "$configured_path" == "$RUNTIME_LINK" ]]; then
+        [[ "$active_source_seen" == "0" ]] || {
+            echo "Active runtime must appear exactly once in the backup allowlist." >&2
+            exit 1
+        }
+        active_source_seen=1
+        resolved_runtime="$(
+            python3 "$OPS_HELPER" resolve-active-runtime \
+                "$RUNTIME_LINK" "$RUNTIME_ROOT"
+        )"
+        resolved_source="$(readlink -f "$resolved_runtime/source")"
+        python3 "$OPS_HELPER" copy-source \
+            "$resolved_runtime" "$stage/runtime" \
+            --managed-workspace-root "$RUNTIME_ROOT" \
+            --immutable-source "$resolved_source"
+    elif [[ "$BACKUP_MODE" == "legacy" \
+        && "$configured_path" == "$LEGACY_SOURCE" ]]; then
+        [[ "$active_source_seen" == "0" ]] || {
+            echo "Active legacy source must appear exactly once in the backup allowlist." >&2
+            exit 1
+        }
+        active_source_seen=1
+        python3 "$OPS_HELPER" copy-legacy-runtime \
+            "$configured_path" "$stage/runtime"
+    else
+        python3 "$OPS_HELPER" copy-source "$configured_path" "$stage/runtime"
+    fi
+done <"$ALLOWLIST_FILE"
+[[ "$active_source_seen" == "1" ]] || {
+    echo "The active backup source is missing from the allowlist." >&2
+    exit 1
+}
+if [[ "$service_stopped" == "1" ]]; then
+    systemctl start "$QUIESCE_SERVICE"
+    service_stopped=0
+fi
+
+if [[ "$BACKUP_MODE" == "managed" ]]; then
+    git -C "$resolved_source" rev-parse HEAD >"$stage/release/revision"
+    git -C "$resolved_source" describe --tags --exact-match 2>/dev/null \
+        >"$stage/release/tag" || printf 'untagged\n' >"$stage/release/tag"
+else
+    printf 'legacy\n' >"$stage/release/revision"
+    printf 'legacy\n' >"$stage/release/tag"
+fi
+python3 "$OPS_HELPER" manifest "$stage" "$stage/manifest.json"
+
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+destination="$BACKUP_DIR/boudyos-$stamp.tar.age"
+signature="$destination.hmac"
+[[ ! -e "$destination" && ! -e "$signature" ]] || {
+    echo "A backup already exists for this timestamp." >&2
+    exit 1
+}
+temporary="$(mktemp "$BACKUP_DIR/.boudyos-$stamp.XXXXXX.tar.age.tmp")"
+signature_temporary="$temporary.hmac"
+tar -C "$stage" --numeric-owner -cpf - . |
+    age --recipient "$AGE_RECIPIENT" --output "$temporary"
+chmod 0600 "$temporary"
+python3 "$OPS_HELPER" hmac-sign "$temporary" "$HMAC_KEY_FILE" "$signature_temporary"
+mv -f -- "$temporary" "$destination"
+mv -f -- "$signature_temporary" "$signature"
+temporary=""
+signature_temporary=""
+
+python3 "$OPS_HELPER" rotate "$BACKUP_DIR"
+status_tmp="$(mktemp "$(dirname "$STATUS_FILE")/.backup.XXXXXX")"
+printf '{"schema_version":1,"state":"healthy","mode":"%s","checked_at":"%s"}\n' \
+    "$BACKUP_MODE" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$status_tmp"
+chmod 0640 "$status_tmp"
+chown "root:$STATUS_GROUP" "$status_tmp"
+mv -f -- "$status_tmp" "$STATUS_FILE"
+printf 'Encrypted backup created: %s\n' "$(basename "$destination")"

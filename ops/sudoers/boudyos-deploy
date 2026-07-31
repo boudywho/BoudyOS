@@ -1,0 +1,3 @@
+# Optional. Validate with visudo -cf before installing.
+# The bot may only atomically queue work; systemd performs the long deploy.
+boudyos ALL=(root) NOPASSWD: /usr/local/sbin/boudyos-deploy request --non-interactive

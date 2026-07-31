@@ -10,16 +10,31 @@ import glob
 import os
 from importlib import import_module
 from logging import Logger
+from pathlib import Path
 
 from . import LOGS
 from .fns.tools import get_all_files
+from .paths import OFFICIAL_PLUGINS, SOURCE_ROOT
 
 
 class Loader:
-    def __init__(self, path="plugins", key="Official", logger: Logger = LOGS):
-        self.path = path
+    def __init__(self, path=OFFICIAL_PLUGINS, key="Official", logger: Logger = LOGS):
+        self.path = os.fspath(path)
         self.key = key
         self._logger = logger
+
+    @staticmethod
+    def _module_name(plugin):
+        path = Path(plugin).with_suffix("")
+        if path.is_absolute():
+            try:
+                path = path.relative_to(SOURCE_ROOT)
+            except ValueError as exc:
+                raise ValueError(
+                    "official module is outside immutable source"
+                ) from exc
+            return ".".join(path.parts)
+        return str(path).replace("/", ".").replace("\\", ".")
 
     def load(
         self,
@@ -57,7 +72,7 @@ class Loader:
             )
         for plugin in sorted(files):
             if func == import_module:
-                plugin = plugin.replace(".py", "").replace("/", ".").replace("\\", ".")
+                plugin = self._module_name(plugin)
             try:
                 modl = func(plugin)
             except ModuleNotFoundError as er:

@@ -1,0 +1,3 @@
+# Exact legacy rollback allowlist. Absolute paths only. Never add /.
+/opt/ultroid
+/etc/ultroid/ultroid.env

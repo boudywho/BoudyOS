@@ -22,11 +22,5 @@ while [ $sec -gt 0 ]; do
     sec=$(($sec - 1))
 done
 echo -e "\e[1;32mInstalling Dependencies ---------------------------\e[0m\n" # Don't Remove Dashes / Fix it
-apt-get update
-apt-get upgrade -y
-pkg upgrade -y
-pkg install python wget -y
-wget https://raw.githubusercontent.com/TeamUltroid/ultroid/main/resources/session/ssgen.py
-pip uninstall telethon -y && install telethon
 clear
-python3 ssgen.py
+python3 resources/session/ssgen.py

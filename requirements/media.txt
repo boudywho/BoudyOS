@@ -1,0 +1,15 @@
+# core + media profile
+-r ../requirements.txt
+-r database.txt
+Pillow>=9,<13
+numpy>=1.26
+opencv-python-headless>=4.8
+lottie>=0.7.2,<1
+pypdf>=6.14.2,<7
+qrcode>=7,<9
+yt-dlp>=2025.1
+youtube-search-python>=1.6.6,<2
+psutil>=5.9
+scikit-image>=0.21
+shazamio>=0.8
+htmlwebshot>=0.1.2,<1

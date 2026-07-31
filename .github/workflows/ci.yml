@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+        include:
+          - python-version: "3.10"
+            constraint: py310.txt
+          - python-version: "3.13"
+            constraint: py313.txt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install tested core and media environment
+        run: |
+          python -m pip install --disable-pip-version-check pip-audit
+          python -m pip install -r requirements/media.txt -c constraints/${{ matrix.constraint }}
+          python -m pip check
+      - name: Clean-environment imports
+        run: |
+          python -c "import bs4, htmlwebshot, telethonpatch; import hiredis, psycopg2, pymongo, redis; from telethonpatch import TelegramClient"
+          python -c "from pyUltroid.startup.BaseClient import UltroidClient"
+      - name: Unit and security tests
+        run: |
+          python -m unittest discover -s tests -v
+          python -m unittest discover -s tests -p 'test_security.py' -v
+          python -m unittest discover -s tests -p 'test_addons.py' -v
+          python -m unittest discover -s tests -p 'test_ops.py' -v
+      - name: Compile
+        run: python -m compileall -q pyUltroid plugins assistant resources ops
+      - name: Repository quality and secret checks
+        run: |
+          python scripts/quality_checks.py
+          python scripts/secret_checks.py
+      - name: JSON and YAML validation
+        run: |
+          find . -type f -name '*.json' -not -path './.git/*' -print0 | xargs -0 -n1 python -m json.tool >/dev/null
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+          for suffix in ("*.yml", "*.yaml"):
+              for path in Path(".").rglob(suffix):
+                  if ".git" not in path.parts:
+                      yaml.safe_load(path.read_text("utf-8"))
+          PY
+      - name: Dependency audit of installed environment
+        run: python -m pip_audit --local
+      - name: Shell syntax and ShellCheck
+        run: |
+          mapfile -d '' shell_scripts < <(
+            find ops -type f -perm -0100 -exec sh -c '
+              for path do
+                head -n1 "$path" | grep -qE "^#!.*(ba)?sh([[:space:]]|$)" &&
+                  printf "%s\\0" "$path"
+              done
+            ' _ {} +
+          )
+          ((${#shell_scripts[@]} > 0))
+          bash -n "${shell_scripts[@]}"
+          shellcheck "${shell_scripts[@]}"
+      - name: Diff hygiene
+        run: git diff --check
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Require exact clean committed source
+        run: |
+          test -z "$(git status --porcelain)"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Build exact committed context
+        run: |
+          tag="$(git describe --tags --exact-match 2>/dev/null || printf untagged)"
+          docker build --tag boudyos:ci \
+            --build-arg BOUDYOS_SOURCE_COMMIT="$GITHUB_SHA" \
+            --build-arg BOUDYOS_SOURCE_TAG="$tag" \
+            --build-arg BOUDYOS_SOURCE_DIRTY=0 .
+      - name: Clean runtime imports and identity
+        run: |
+          docker run --rm --entrypoint python3 boudyos:ci -m compileall -q pyUltroid plugins assistant
+          docker run --rm --entrypoint python3 boudyos:ci -c "import bs4, htmlwebshot, telethonpatch; import hiredis, psycopg2, pymongo, redis; from telethonpatch import TelegramClient; from pyUltroid.startup.BaseClient import UltroidClient"
+          docker run --rm --entrypoint python3 boudyos:ci -m unittest discover -s tests -v
+          docker run --rm -e EXPECTED="$GITHUB_SHA" --entrypoint python3 boudyos:ci \
+            -c "import json, os; value=json.load(open(os.environ['BOUDYOS_RELEASE_METADATA'])); assert value['commit'] == os.environ['EXPECTED'] and value['dirty'] is False"

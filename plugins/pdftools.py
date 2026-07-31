@@ -51,13 +51,7 @@ try:
 except ImportError:
     Image = None
     LOGS.info(f"{__file__}: PIL  not Installed.")
-try:
-    from PyPDF2 import PdfReader, PdfWriter, PdfMerger
-    PdfFileReader = PdfReader
-    PdfFileWriter = PdfWriter
-    PdfFileMerger = PdfMerger
-except ImportError:
-    from PyPDF2 import PdfFileMerger, PdfFileReader, PdfFileWriter
+from pypdf import PdfReader, PdfWriter
 from telethon.errors.rpcerrorlist import PhotoSaveFileInvalidError
 
 if not os.path.isdir("pdf"):
@@ -84,12 +78,12 @@ async def pdfseimg(event):
     await xx.delete()
     pdfp = "pdf/hehe.pdf"
     pdfp.replace(".pdf", "")
-    pdf = PdfFileReader(pdfp)
+    pdf = PdfReader(pdfp)
     if not msg:
         ok = []
-        for num in range(pdf.numPages):
-            pw = PdfFileWriter()
-            pw.addPage(pdf.getPage(num))
+        for num, page in enumerate(pdf.pages):
+            pw = PdfWriter()
+            pw.add_page(page)
             fil = os.path.join(f"pdf/ult{num + 1}.png")
             ok.append(fil)
             with open(fil, "wb") as f:
@@ -103,8 +97,8 @@ async def pdfseimg(event):
     elif "-" in msg:
         ok = int(msg.split("-")[-1]) - 1
         for o in range(ok):
-            pw = PdfFileWriter()
-            pw.addPage(pdf.getPage(o))
+            pw = PdfWriter()
+            pw.add_page(pdf.pages[o])
             with open(os.path.join("ult.png"), "wb") as f:
                 pw.write(f)
             await event.reply(
@@ -114,8 +108,8 @@ async def pdfseimg(event):
         os.remove(pdfp)
     else:
         o = int(msg) - 1
-        pw = PdfFileWriter()
-        pw.addPage(pdf.getPage(o))
+        pw = PdfWriter()
+        pw.add_page(pdf.pages[o])
         with open(os.path.join("ult.png"), "wb") as f:
             pw.write(f)
         os.remove(pdfp)
@@ -132,7 +126,7 @@ async def pdfseimg(event):
 async def pdfsetxt(event):
     ok = await event.get_reply_message()
     msg = event.pattern_match.group(1).strip()
-    if not ok and ok.document and ok.document.mime_type == "application/pdf":
+    if not (ok and ok.document and ok.document.mime_type == "application/pdf"):
         await event.eor("`Reply The pdf u Want to Download..`")
         return
     xx = await event.eor(get_string("com_1"))
@@ -143,12 +137,11 @@ async def pdfsetxt(event):
     await xx.delete()
     dl = result.name
     if not msg:
-        pdf = PdfFileReader(dl)
+        pdf = PdfReader(dl)
         text = f"{dl.split('.')[0]}.txt"
         with open(text, "w") as f:
-            for page_num in range(pdf.numPages):
-                pageObj = pdf.getPage(page_num)
-                txt = pageObj.extractText()
+            for page_num, page in enumerate(pdf.pages):
+                txt = page.extract_text() or ""
                 f.write(f"Page {page_num + 1}\n")
                 f.write("".center(100, "-"))
                 f.write(txt)
@@ -162,17 +155,19 @@ async def pdfsetxt(event):
         return
     if "-" in msg:
         u, d = msg.split("-")
-        a = PdfFileReader(dl)
-        str = "".join(a.getPage(i).extractText() for i in range(int(u) - 1, int(d)))
+        a = PdfReader(dl)
+        extracted = "".join(
+            a.pages[i].extract_text() or "" for i in range(int(u) - 1, int(d))
+        )
         text = f"{dl.split('.')[0]} {msg}.txt"
     else:
         u = int(msg) - 1
-        a = PdfFileReader(dl)
-        str = a.getPage(u).extractText()
+        a = PdfReader(dl)
+        extracted = a.pages[u].extract_text() or ""
         text = f"{dl.split('.')[0]} Pg-{msg}.txt"
 
     with open(text, "w") as f:
-        f.write(str)
+        f.write(extracted)
     await event.client.send_file(
         event.chat_id,
         text,
@@ -227,10 +222,10 @@ async def imgscan(event):
             from skimage.filters import threshold_local
         except ImportError:
             LOGS.info(f"Scikit-Image is not Installed.")
-            await xx.edit("`Installing Scikit-Image...\nThis may take some long...`")
-            _, __ = await bash("pip install scikit-image")
-            LOGS.info(_)
-            from skimage.filters import threshold_local
+            return await xx.edit(
+                "`Scikit-Image is not installed. Enable the media dependency "
+                "group during deployment.`"
+            )
         cropped_image = four_point_transform(
             original_image,
             simplified_cnt.reshape(4, 2) * ratio,
@@ -296,12 +291,10 @@ async def savepdf(event):
                 from skimage.filters import threshold_local
             except ImportError:
                 LOGS.info(f"Scikit-Image is not Installed.")
-                await xx.edit(
-                    "`Installing Scikit-Image...\nThis may take some long...`"
+                return await xx.edit(
+                    "`Scikit-Image is not installed. Enable the media dependency "
+                    "group during deployment.`"
                 )
-                _, __ = await bash("pip install scikit-image")
-                LOGS.info(_)
-                from skimage.filters import threshold_local
             cropped_image = four_point_transform(
                 original_image,
                 simplified_cnt.reshape(4, 2) * ratio,
@@ -344,14 +337,15 @@ async def sendpdf(event):
         return
     msg = event.pattern_match.group(1).strip()
     ok = f"{msg}.pdf" if msg else "My PDF File.pdf"
-    merger = PdfFileMerger()
+    merger = PdfWriter()
     afl = glob.glob("pdf/*")
     ok_ = [*sorted(afl)]
     for item in ok_:
         if item.endswith("pdf"):
             merger.append(item)
     merger.write(ok)
-    await event.client.send_file(event.chat_id, ok_, reply_to=event.reply_to_msg_id)
-    os.remove(ok_)
+    merger.close()
+    await event.client.send_file(event.chat_id, ok, reply_to=event.reply_to_msg_id)
+    os.remove(ok)
     shutil.rmtree("pdf/")
     os.makedirs("pdf/")

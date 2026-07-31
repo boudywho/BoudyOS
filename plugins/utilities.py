@@ -66,6 +66,8 @@ except ImportError:
 from pyUltroid._misc._assistant import asst_cmd
 from pyUltroid.dB.gban_mute_db import is_gbanned
 from pyUltroid.fns.tools import get_chat_and_msgid
+from pyUltroid.security.subprocess import run_exec
+from pyUltroid.security.paths import cli_path
 
 from . import upload_file as uf
 
@@ -502,7 +504,13 @@ async def telegraphcmd(event):
             getit = file
         elif dar.endswith("animated"):
             file = f"{getit}.gif"
-            await bash(f"lottie_convert.py '{getit}' {file}")
+            result = await run_exec(
+                ["lottie_convert.py", cli_path(getit), cli_path(file)],
+                timeout=120,
+            )
+            if not result.ok:
+                os.remove(getit)
+                return await xx.eor("`Animated media conversion failed.`")
             os.remove(getit)
             getit = file
         if "document" not in dar:

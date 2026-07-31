@@ -92,6 +92,7 @@ def load_branding_function():
     namespace = {
         "asyncio": SimpleNamespace(sleep=AsyncMock()),
         "LOGS": Mock(),
+        "source_resource": lambda *parts: ROOT / "resources" / Path(*parts),
     }
     exec(compile(ast.Module(selected, type_ignores=[]), str(path), "exec"), namespace)
     return namespace
@@ -196,18 +197,16 @@ class ProductSurfaceTests(unittest.TestCase):
         self.assertNotIn("bash installer.sh", dockerfile)
         self.assertNotIn("git clone", dockerfile)
 
-    def test_docker_runtime_git_tracks_boudyos_without_host_metadata(self):
+    def test_docker_runtime_identity_never_fabricates_remote_main(self):
         dockerfile = (ROOT / "Dockerfile").read_text("utf-8")
         dockerignore = (ROOT / ".dockerignore").read_text("utf-8").splitlines()
         self.assertIn(".git", dockerignore)
-        self.assertIn("git init -b main", dockerfile)
-        self.assertIn(
-            "git remote add origin https://github.com/boudywho/BoudyOS.git",
-            dockerfile,
-        )
-        self.assertIn("git fetch --depth=1 origin main", dockerfile)
-        self.assertIn("git reset --mixed origin/main", dockerfile)
-        self.assertIn("git branch --set-upstream-to=origin/main main", dockerfile)
+        self.assertNotIn("git init", dockerfile)
+        self.assertNotIn("git fetch", dockerfile)
+        self.assertNotIn("git reset", dockerfile)
+        self.assertIn("ARG BOUDYOS_SOURCE_COMMIT=unknown", dockerfile)
+        self.assertIn("ARG BOUDYOS_SOURCE_DIRTY=1", dockerfile)
+        self.assertIn("/opt/boudyos-release.json", dockerfile)
 
     def test_docker_context_keeps_required_source_assets_and_tests(self):
         patterns = (ROOT / ".dockerignore").read_text("utf-8").splitlines()
@@ -339,7 +338,7 @@ class AssistantBrandingTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("/newbot", commands)
         self.assertNotIn("/setusername", commands)
         user.send_file.assert_awaited_once_with(
-            "botfather", "resources/extras/boudyos_avatar.jpg"
+            "botfather", str(ROOT / "resources/extras/boudyos_avatar.jpg")
         )
         notification.edit.assert_awaited_once()
         self.assertEqual(

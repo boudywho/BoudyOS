@@ -1,35 +1,31 @@
-name: CodeQL Analysis
+name: CodeQL
 
 on:
   push:
-    branches-ignore:
-      - 'dependabot/**'
+    branches: [main]
   pull_request:
-    branches: [ '**' ]
+    branches: [main]
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '17 6 * * 3'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   analyze:
-    name: Analyze
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Cache CodeQL database
-        uses: actions/cache@v4
-        with:
-          path: ~/.codeql
-          key: ${{ runner.os }}-codeql-${{ hashFiles('**/qlpack.yml') }}
-          restore-keys: ${{ runner.os }}-codeql-
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@b611370bb5703a7efb587f9e7d7bbfca360c8e1f
         with:
-          languages: 'python'
+          languages: python
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@b611370bb5703a7efb587f9e7d7bbfca360c8e1f
+        with:
+          upload: false

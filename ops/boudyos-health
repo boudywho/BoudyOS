@@ -1,0 +1,532 @@
+#!/usr/bin/env python3
+"""Root-side BoudyOS health probe with sanitized atomic status."""
+
+import json
+import os
+import grp
+import pwd
+import re
+import shutil
+import stat
+import subprocess
+import time
+import urllib.parse
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+from boudyos_ops import atomic_json, sanitize_health_status
+
+
+def read_config(path):
+    values = {}
+    try:
+        lines = path.read_text("utf-8").splitlines()
+    except OSError:
+        return values
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip().strip("\"'")
+    return values
+
+
+def run(argv, timeout=10, env=None):
+    try:
+        return subprocess.run(
+            argv,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=timeout,
+            check=False,
+            env=env,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def file_fresh(path, maximum_age, required_uid=None, expected_mode=None):
+    try:
+        info = path.lstat()
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or info.st_mode & 0o022
+            or (required_uid is not None and info.st_uid != required_uid)
+        ):
+            return False
+        value = json.loads(path.read_text("utf-8"))
+        if value.get("schema_version") != 1:
+            return False
+        if expected_mode is not None and value.get("mode") != expected_mode:
+            return False
+        checked = value.get("checked_at")
+        if isinstance(checked, bool):
+            return False
+        if isinstance(checked, (int, float)):
+            stamp = float(checked)
+        elif isinstance(checked, str):
+            stamp = datetime.fromisoformat(
+                checked.replace("Z", "+00:00")
+            ).astimezone(timezone.utc).timestamp()
+        else:
+            return False
+        age = time.time() - stamp
+        return 0 <= age <= maximum_age
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+
+
+def memory_percent():
+    values = {}
+    try:
+        for line in Path("/proc/meminfo").read_text("ascii").splitlines():
+            key, value = line.split(":", 1)
+            values[key] = int(value.split()[0])
+        total = values["MemTotal"]
+        available = values["MemAvailable"]
+        return round((total - available) * 100 / total, 1)
+    except (OSError, KeyError, ValueError, ZeroDivisionError):
+        return -1
+
+
+def send_alert(config, text):
+    token = config.get("TELEGRAM_BOT_TOKEN")
+    chat_id = config.get("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        return None
+    payload = urllib.parse.urlencode({"chat_id": chat_id, "text": text}).encode()
+    request = urllib.request.Request(
+        "https://api.telegram.org/bot" + token + "/sendMessage",
+        data=payload,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            result = json.loads(response.read(1024))
+        return isinstance(result, dict) and result.get("ok") is True
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+
+
+def readiness_fresh(path, expected_pid, maximum_age, now=None):
+    now = time.time() if now is None else now
+    try:
+        value = json.loads(path.read_text("ascii"))
+        stamp = int(value["timestamp"])
+        pid = int(value["pid"])
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return False
+    return (
+        value.get("schema_version") == 1
+        and expected_pid > 0
+        and pid == expected_pid
+        and 0 <= now - stamp <= maximum_age
+    )
+
+
+def runtime_code_links_valid(
+    runtime_link,
+    release_root,
+    workspace_root,
+    runtime_uid=None,
+    runtime_gid=None,
+    approved_origin="https://github.com/boudywho/BoudyOS.git",
+):
+    """Validate one atomic workspace selector, exact source, and writable work."""
+    try:
+        if (
+            not runtime_link.is_symlink()
+            or release_root.is_symlink()
+            or workspace_root.is_symlink()
+        ):
+            return False
+        if runtime_link.lstat().st_uid != 0:
+            return False
+        runtime = runtime_link.resolve(strict=True)
+        release_root = release_root.resolve(strict=True)
+        workspace_root = workspace_root.resolve(strict=True)
+        if (
+            not release_root.is_dir()
+            or not workspace_root.is_dir()
+            or runtime.parent != workspace_root
+            or len(runtime.name) != 40
+            or any(character not in "0123456789abcdef" for character in runtime.name)
+        ):
+            return False
+        commit = runtime.name
+        source_link = runtime / "source"
+        expected_source = release_root / commit
+        if (
+            not source_link.is_symlink()
+            or source_link.lstat().st_uid != 0
+            or (runtime_gid is not None and source_link.lstat().st_gid != runtime_gid)
+            or os.readlink(source_link) != str(expected_source)
+            or source_link.resolve(strict=True) != expected_source
+        ):
+            return False
+        source = expected_source
+        if (
+            source.lstat().st_uid != 0
+            or (runtime_gid is not None and source.lstat().st_gid != runtime_gid)
+            or stat.S_IMODE(source.lstat().st_mode) != 0o750
+            or runtime.lstat().st_uid != 0
+            or (runtime_gid is not None and runtime.lstat().st_gid != runtime_gid)
+            or stat.S_IMODE(runtime.lstat().st_mode) != 0o750
+            or {child.name for child in runtime.iterdir()} != {"source", "work"}
+        ):
+            return False
+        origin = run(["git", "-C", str(source), "remote", "get-url", "origin"])
+        head = run(["git", "-C", str(source), "rev-parse", "HEAD"])
+        git_read_env = os.environ.copy()
+        git_read_env["GIT_OPTIONAL_LOCKS"] = "0"
+        clean = run(
+            [
+                "git", "-C", str(source), "status", "--porcelain",
+                "--untracked-files=normal",
+            ],
+            env=git_read_env,
+        )
+        tags = run(["git", "-C", str(source), "tag", "--points-at", commit])
+        if (
+            not origin
+            or origin.returncode != 0
+            or origin.stdout.strip() != approved_origin
+            or not head
+            or head.returncode != 0
+            or head.stdout.strip() != commit
+            or not clean
+            or clean.returncode != 0
+            or clean.stdout
+            or not tags
+            or tags.returncode != 0
+        ):
+            return False
+        release_tags = [
+            tag
+            for tag in tags.stdout.splitlines()
+            if re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+", tag)
+        ]
+        if len(release_tags) != 1:
+            return False
+        peeled = run(
+            [
+                "git", "-C", str(source), "rev-parse",
+                f"refs/tags/{release_tags[0]}^{{commit}}",
+            ]
+        )
+        if not peeled or peeled.returncode != 0 or peeled.stdout.strip() != commit:
+            return False
+        mutable_top = {
+            "addons", "downloads", "sessions", "db", "logs", "temp", "vcbot"
+        }
+        mutable_resources = {"auth", "auths", "downloads"}
+        for directory, names, files in os.walk(source, followlinks=False):
+            base = Path(directory)
+            for name in names + files:
+                child = base / name
+                info = child.lstat()
+                if info.st_uid != 0:
+                    return False
+                if stat.S_ISLNK(info.st_mode):
+                    target = child.resolve(strict=True)
+                    if target.is_relative_to(source):
+                        continue
+                    for selector in (target, *target.parents[:-1]):
+                        selector_info = selector.lstat()
+                        if (
+                            selector_info.st_uid != 0
+                            or selector_info.st_mode & 0o022
+                        ):
+                            return False
+                    continue
+                if info.st_mode & 0o027:
+                    return False
+        work = runtime / "work"
+        work_info = work.lstat()
+        if (
+            stat.S_ISLNK(work_info.st_mode)
+            or not stat.S_ISDIR(work_info.st_mode)
+            or stat.S_IMODE(work_info.st_mode) != 0o700
+            or (runtime_uid is not None and work_info.st_uid != runtime_uid)
+            or (runtime_gid is not None and work_info.st_gid != runtime_gid)
+        ):
+            return False
+        if any(
+            (work / name).exists() or (work / name).is_symlink()
+            for name in ("pyUltroid", "plugins", "assistant", "strings", "startup")
+        ):
+            return False
+        for directory, names, files in os.walk(work, followlinks=False):
+            base = Path(directory)
+            for name in names + files:
+                info = (base / name).lstat()
+                if stat.S_ISLNK(info.st_mode):
+                    return False
+                if runtime_uid is not None and info.st_uid != runtime_uid:
+                    return False
+                if runtime_gid is not None and info.st_gid != runtime_gid:
+                    return False
+                mode = stat.S_IMODE(info.st_mode)
+                if (
+                    stat.S_ISDIR(info.st_mode) and mode != 0o700
+                    or stat.S_ISREG(info.st_mode) and mode not in (0o600, 0o700)
+                ):
+                    return False
+        for name in mutable_top:
+            path = work / name
+            if path.is_symlink() or not path.is_dir():
+                return False
+        resources = work / "resources"
+        if resources.is_symlink() or not resources.is_dir():
+            return False
+        if {child.name for child in resources.iterdir()} != mutable_resources:
+            return False
+        return all(
+            not (resources / name).is_symlink()
+            and (resources / name).is_dir()
+            for name in mutable_resources
+        )
+    except (OSError, ValueError):
+        return False
+
+
+def legacy_layout_valid(source):
+    """Validate that legacy health follows the real mutable source directory."""
+    try:
+        info = source.lstat()
+        return (
+            stat.S_ISDIR(info.st_mode)
+            and not stat.S_ISLNK(info.st_mode)
+            and not info.st_mode & 0o002
+        )
+    except OSError:
+        return False
+
+
+def ensure_root_status_directory(path, group_name):
+    """Keep root truth replaceable only by root and readable by its service group."""
+    expected_uid = 0 if os.geteuid() == 0 else os.geteuid()
+    try:
+        parent_info = path.parent.lstat()
+    except OSError as exc:
+        raise PermissionError("status parent is not provisioned") from exc
+    if (
+        not stat.S_ISDIR(parent_info.st_mode)
+        or stat.S_ISLNK(parent_info.st_mode)
+        or parent_info.st_uid != expected_uid
+        or parent_info.st_mode & 0o022
+    ):
+        raise PermissionError("status parent ownership or mode is unsafe")
+
+    # The parent is deliberately read-only in boudyos-health.service.  The
+    # tmpfiles prerequisite creates status; health changes only that allowlist.
+    path.mkdir(mode=0o750, exist_ok=True)
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode):
+        raise PermissionError("status path is not a regular directory")
+    gid = grp.getgrnam(group_name).gr_gid
+    if os.geteuid() == 0:
+        os.chown(path, 0, gid)
+    os.chmod(path, 0o750)
+    info = path.lstat()
+    if (
+        info.st_uid != expected_uid
+        or info.st_gid != gid
+        or stat.S_IMODE(info.st_mode) != 0o750
+    ):
+        raise PermissionError("status directory ownership or mode is unsafe")
+
+
+def main():
+    config_path = Path(
+        os.environ.get("BOUDYOS_HEALTH_CONFIG", "/etc/boudyos/health.conf")
+    )
+    config = read_config(config_path)
+    service = config.get("SERVICE", "boudyos.service")
+    status_dir = Path(
+        config.get(
+            "BOUDYOS_STATUS_DIR",
+            os.environ.get("BOUDYOS_STATUS_DIR", "/var/lib/boudyos/status"),
+        )
+    )
+    status_file = Path(config.get("STATUS_FILE", str(status_dir / "health.json")))
+    state_file = Path(config.get("ALERT_STATE_FILE", str(status_dir / "alert.json")))
+    ready_file = Path(config.get("READY_FILE", "/run/boudyos/ready"))
+    backup_status = Path(
+        config.get("BACKUP_STATUS_FILE", str(status_dir / "backup.json"))
+    )
+    update_status = Path(
+        config.get("UPDATE_STATUS_FILE", str(status_dir / "update.json"))
+    )
+    layout_mode = config.get("LAYOUT_MODE", "managed")
+    release_root = Path(config.get("RELEASE_ROOT", "/opt/boudyos/releases"))
+    workspace_root = Path(
+        config.get("WORKSPACE_ROOT", "/var/lib/boudyos/workspaces")
+    )
+    runtime_link = Path(config.get("RUNTIME_LINK", "/var/lib/boudyos/current"))
+    legacy_source = Path(config.get("LEGACY_SOURCE", "/opt/ultroid"))
+    ensure_root_status_directory(
+        status_dir, config.get("BOUDYOS_STATUS_GROUP", "boudyos")
+    )
+    disk_path = config.get("DISK_PATH", "/opt/boudyos")
+    cooldown = int(config.get("ALERT_COOLDOWN_SECONDS", "3600"))
+    alerts = []
+
+    active_result = run(["systemctl", "is-active", service])
+    service_active = bool(active_result and active_result.returncode == 0)
+    if not service_active:
+        alerts.append("service inactive")
+    restart_result = run(
+        ["systemctl", "show", service, "--property=NRestarts", "--value"]
+    )
+    try:
+        restart_count = (
+            int(restart_result.stdout.strip()) if restart_result else -1
+        )
+    except ValueError:
+        restart_count = -1
+    pid_result = run(["systemctl", "show", service, "--property=MainPID", "--value"])
+    try:
+        main_pid = int(pid_result.stdout.strip()) if pid_result else 0
+    except ValueError:
+        main_pid = 0
+    readiness = service_active and readiness_fresh(
+        ready_file,
+        main_pid,
+        int(config.get("READY_MAX_AGE_SECONDS", "45")),
+    )
+    if not readiness:
+        alerts.append("readiness stale")
+
+    redis_env = read_config(
+        Path(config.get("REDIS_ENV_FILE", "/etc/boudyos/redis.env"))
+    )
+    redis_process_env = os.environ.copy()
+    if redis_env.get("REDIS_PASSWORD"):
+        redis_process_env["REDISCLI_AUTH"] = redis_env["REDIS_PASSWORD"]
+    redis_result = run(
+        [
+            "redis-cli",
+            "-h",
+            redis_env.get("REDIS_HOST", "127.0.0.1"),
+            "-p",
+            redis_env.get("REDIS_PORT", "6379"),
+            "--user",
+            redis_env.get("REDIS_USER", "default"),
+            "PING",
+        ],
+        env=redis_process_env,
+    )
+    redis_healthy = bool(
+        redis_result and redis_result.stdout.strip() == "PONG"
+    )
+    if not redis_healthy:
+        alerts.append("redis unavailable")
+
+    try:
+        disk = shutil.disk_usage(disk_path)
+        disk_percent = round(disk.used * 100 / disk.total, 1)
+    except (OSError, ZeroDivisionError):
+        disk_percent = -1
+    mem_percent = memory_percent()
+    if disk_percent >= float(config.get("DISK_WARN_PERCENT", "90")):
+        alerts.append("disk usage high")
+    if mem_percent >= float(config.get("MEMORY_WARN_PERCENT", "90")):
+        alerts.append("memory usage high")
+    backup_fresh = file_fresh(
+        backup_status,
+        int(config.get("BACKUP_MAX_AGE_SECONDS", "129600")),
+        required_uid=0,
+        expected_mode=layout_mode,
+    )
+    update_fresh = file_fresh(
+        update_status,
+        int(config.get("UPDATE_MAX_AGE_SECONDS", "172800")),
+        required_uid=0,
+    )
+    if not backup_fresh:
+        alerts.append("backup stale")
+    if not update_fresh:
+        alerts.append("update status stale")
+    runtime_user = config.get("RUNTIME_USER", "boudyos")
+    runtime_group = config.get("RUNTIME_GROUP", runtime_user)
+    try:
+        runtime_uid = pwd.getpwnam(runtime_user).pw_uid
+        runtime_gid = grp.getgrnam(runtime_group).gr_gid
+    except KeyError:
+        runtime_uid = runtime_gid = -1
+    if layout_mode == "managed":
+        runtime_immutable = runtime_code_links_valid(
+            runtime_link,
+            release_root,
+            workspace_root,
+            runtime_uid,
+            runtime_gid,
+        )
+    elif layout_mode == "legacy":
+        runtime_immutable = legacy_layout_valid(legacy_source)
+    else:
+        runtime_immutable = False
+    if not runtime_immutable:
+        alerts.append("runtime source/work layout invalid")
+
+    previous = {}
+    try:
+        previous = json.loads(state_file.read_text("utf-8"))
+    except (OSError, ValueError):
+        pass
+    now = int(time.time())
+    previous_state = previous.get("state")
+    last_alert = int(previous.get("last_alert", 0))
+    delivery = None
+    if alerts and (
+        previous_state != "degraded" or now - last_alert >= cooldown
+    ):
+        delivery = send_alert(
+            config, "BoudyOS health degraded: " + ", ".join(alerts)
+        )
+    elif not alerts and previous_state == "degraded":
+        delivery = send_alert(config, "BoudyOS health recovered.")
+    if delivery is True:
+        last_alert = now
+    elif delivery is False:
+        alerts.append("alert delivery failed")
+
+    health = sanitize_health_status(
+        {
+            "schema_version": 1,
+            "state": "healthy" if not alerts else "degraded",
+            "checked_at": now,
+            "service_active": service_active,
+            "restart_count": restart_count,
+            "readiness": readiness,
+            "redis": redis_healthy,
+            "disk_percent": disk_percent,
+            "memory_percent": mem_percent,
+            "update_fresh": update_fresh,
+            "backup_fresh": backup_fresh,
+            "runtime_immutable": runtime_immutable,
+            "alerts": alerts,
+            "alert_delivery_failed": delivery is False,
+        }
+    )
+    atomic_json(status_file, health, mode=0o640)
+    atomic_json(
+        state_file,
+        {
+            "schema_version": 1,
+            "state": health["state"],
+            "last_alert": last_alert,
+        },
+        mode=0o600,
+    )
+    print(json.dumps(health, sort_keys=True))
+    return 0 if not alerts else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
