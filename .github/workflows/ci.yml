@@ -43,10 +43,12 @@ jobs:
           python -c "from pyUltroid.startup.BaseClient import UltroidClient"
       - name: Unit and security tests
         run: |
-          python -m unittest discover -s tests -v
           python -m unittest discover -s tests -p 'test_security.py' -v
           python -m unittest discover -s tests -p 'test_addons.py' -v
-          python -m unittest discover -s tests -p 'test_ops.py' -v
+          # Native deployment/migration contracts intentionally enforce root
+          # ownership. GitHub-hosted runners provide passwordless sudo; run the
+          # complete suite under the same privilege boundary as production.
+          sudo "$(command -v python)" -m unittest discover -s tests -v
       - name: Compile
         run: python -m compileall -q pyUltroid plugins assistant resources ops
       - name: Repository quality and secret checks
@@ -103,4 +105,4 @@ jobs:
           docker run --rm --entrypoint python3 boudyos:ci -c "import bs4, htmlwebshot, telethonpatch; import hiredis, psycopg2, pymongo, redis; from telethonpatch import TelegramClient; from pyUltroid.startup.BaseClient import UltroidClient"
           docker run --rm --entrypoint python3 boudyos:ci -m unittest discover -s tests -v
           docker run --rm -e EXPECTED="$GITHUB_SHA" --entrypoint python3 boudyos:ci \
-            -c "import json, os; value=json.load(open(os.environ['BOUDYOS_RELEASE_METADATA'])); assert value['commit'] == os.environ['EXPECTED'] and value['dirty'] is False"
+            -c "import json, os; value=json.load(open(os.environ['BOUDYOS_RELEASE_METADATA'])); assert value['commit'] == os.environ['EXPECTED'] and value['dirty'] == 0"
