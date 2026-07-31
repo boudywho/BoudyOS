@@ -77,7 +77,7 @@ root:root 0640. Replace the documented zero placeholder. Real
 present and the commit is nonzero 40-hex:
 
 ```text
-BOUDYOS_RELEASE_TAG=v2.2.1
+BOUDYOS_RELEASE_TAG=v2.2.2
 BOUDYOS_RELEASE_COMMIT=<exact 40-hex peeled tag commit>
 ```
 
