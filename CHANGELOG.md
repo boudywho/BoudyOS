@@ -1,5 +1,15 @@
 # Changelog
 
+## BoudyOS 2.2.1 — legacy migration readiness
+
+- Corrected the migration `prepare` and legacy rollback gates for installations
+  running BoudyOS 2.1/legacy Ultroid, which predate the 2.2 readiness heartbeat.
+- Legacy resume now requires a replaced nonzero systemd MainPID to remain
+  active and unchanged for a bounded grace interval; managed 2.2 activation
+  and rollback still require the fresh PID-correlated heartbeat.
+- Repeated `prepare` validates and reuses an exact protected preparation record
+  instead of stopping the legacy service or creating an ambiguous snapshot.
+
 ## BoudyOS 2.2.0 — security and reliability
 
 - Native activation now uses one atomic commit-workspace selector for immutable
