@@ -1,5 +1,10 @@
 # Changelog
 
+## BoudyOS 2.2.6 — self-userbot text wizard
+
+- Added a user-account-only numbered `.yt` wizard with no assistant-bot
+  dependency.
+
 ## BoudyOS 2.2.5 — Python launcher module-mode fix
 
 - Signaled module-mode startup before loading `pyUltroid`, preserving the

@@ -107,6 +107,58 @@ class FormatTests(unittest.TestCase):
         self.assertNotIn("720p", keys)
 
 
+class WizardMenuTests(unittest.TestCase):
+    def setUp(self):
+        self.choices = core.build_format_choices(
+            {"formats": [{"height": 1080, "vcodec": "h264", "acodec": "none"}]}
+        )
+
+    def test_quality_accepts_one_based_number_key_and_label(self):
+        self.assertEqual(core.parse_quality_choice("1", self.choices), "best")
+        self.assertEqual(core.parse_quality_choice("1080p", self.choices), "1080p")
+        self.assertEqual(
+            core.parse_quality_choice("Audio M4A", self.choices), "audio-m4a"
+        )
+        self.assertEqual(
+            core.parse_quality_choice("audio_mp3", self.choices), "audio-mp3"
+        )
+        self.assertIsNone(core.parse_quality_choice("99", self.choices))
+        self.assertIsNone(core.parse_quality_choice("unknown", self.choices))
+
+    def test_timestamp_menu_aliases_are_deterministic(self):
+        expected = {
+            "1": "full",
+            "custom": "custom",
+            "first60": "first60",
+            "last 30s": "last30",
+            "change-quality": "quality",
+            "0": "cancel",
+            "cancel": "cancel",
+        }
+        for value, action in expected.items():
+            with self.subTest(value=value):
+                self.assertEqual(core.parse_timestamp_choice(value), action)
+        self.assertIsNone(core.parse_timestamp_choice("6"))
+
+    def test_confirmation_accepts_words_and_numeric_aliases(self):
+        expected = {
+            "1": "confirm",
+            "confirm": "confirm",
+            "yes": "confirm",
+            "2": "quality",
+            "quality": "quality",
+            "3": "time",
+            "time": "time",
+            "timestamp": "time",
+            "4": "cancel",
+            "cancel": "cancel",
+        }
+        for value, action in expected.items():
+            with self.subTest(value=value):
+                self.assertEqual(core.parse_confirmation_choice(value), action)
+        self.assertIsNone(core.parse_confirmation_choice("later"))
+
+
 class TimestampTests(unittest.TestCase):
     def test_supported_forms(self):
         self.assertEqual(core.parse_timestamp_ranges("full", 300), [])
