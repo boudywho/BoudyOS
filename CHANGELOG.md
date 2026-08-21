@@ -1,5 +1,10 @@
 # Changelog
 
+## BoudyOS 2.2.5 — Python launcher module-mode fix
+
+- Signaled module-mode startup before loading `pyUltroid`, preserving the
+  launcher's writable-work exclusion while restoring managed activation.
+
 ## BoudyOS 2.2.4 — deployment preflight classifier fix
 
 - Limited preflight shell syntax checks to executable files with shell shebangs,
