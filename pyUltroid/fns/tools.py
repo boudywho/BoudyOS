@@ -650,7 +650,7 @@ def telegraph_client():
     profile_url = (
         f"https://t.me/{ultroid_bot.me.username}"
         if ultroid_bot.me.username
-        else "https://t.me/TeamUltroid"
+        else "https://github.com/boudywho/BoudyOS"
     )
     try:
         TelegraphClient.create_account(
@@ -692,7 +692,7 @@ async def Carbon(
         kwargs["text"] = code
         kwargs["theme"] = kwargs.get("theme", "breeze")
         kwargs["darkMode"] = kwargs.get("darkMode", True)
-        kwargs["title"] = kwargs.get("title", "Ultroid")
+        kwargs["title"] = kwargs.get("title", "BoudyOS")
     else:
         kwargs["code"] = code
     con = await async_searcher(base_url, post=True, json=kwargs, re_content=True)

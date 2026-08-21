@@ -8,13 +8,15 @@
 from . import *
 
 START = """
-🪅 **Help Menu** 🪅
+**BoudyOS Assistant**
 
-✘  /start : Check I am Alive or not.
-✘  /help : Get This Message.
-✘  /repo : Get Bot's Repo..
+Manage groups and use everyday tools from one place.
 
-🧑‍💻 Join **@TeamUltroid**
+• /start — Check assistant status
+• /help — Open this help menu
+• /repo — View the BoudyOS source
+
+Choose a category below.
 """
 
 ADMINTOOLS = """✘ **AdminTools** ✘
@@ -84,6 +86,13 @@ MISC = """
 
 STRINGS = {"Admintools": ADMINTOOLS, "locks": LOCKS, "Utils": UTILITIES, "Misc": MISC}
 
+CATEGORY_LABELS = {
+    "Admintools": "Admin tools",
+    "locks": "Locks",
+    "Utils": "Utilities",
+    "Misc": "Miscellaneous",
+}
+
 MNGE = udB.get_key("MNGR_EMOJI") or "•"
 
 
@@ -93,12 +102,13 @@ def get_buttons():
     while keys:
         BT = []
         for i in list(keys)[:2]:
-            text = f"{MNGE} {i} {MNGE}"
+            text = f"{MNGE} {CATEGORY_LABELS[i]} {MNGE}"
             BT.append(Button.inline(text, f"hlp_{i}"))
             del keys[i]
         BTTS.append(BT)
     url = f"https://t.me/{asst.me.username}?startgroup=true"
     BTTS.append([Button.url("Add me to Group", url)])
+    BTTS.append([Button.inline("Dashboard", "open")])
     return BTTS
 
 
@@ -118,9 +128,7 @@ async def helpish(event):
 
 @callback("mngbtn", owner=True)
 async def ehwhshd(e):
-    buttons = get_buttons()
-    buttons.append([Button.inline("<< Back", "open")])
-    await e.edit(buttons=buttons)
+    await e.edit(START, buttons=get_buttons())
 
 
 @callback("mnghome")

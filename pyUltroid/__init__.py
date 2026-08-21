@@ -23,7 +23,7 @@ run_as_module = __package__ in sys.argv or sys.argv[0] == "-m"
 
 class ULTConfig:
     lang = "en"
-    thumb = str(source_resource("extras", "ultroid.jpg"))
+    thumb = str(source_resource("extras", "boudyos_avatar.jpg"))
 
 
 if run_as_module:
@@ -107,7 +107,7 @@ if run_as_module:
     DUAL_HNDLR = udB.get_key("DUAL_HNDLR") or "/"
     SUDO_HNDLR = udB.get_key("SUDO_HNDLR") or HNDLR
 else:
-    print("pyUltroid 2022 © TeamUltroid")
+    print("pyUltroid - BoudyOS")
 
     from logging import getLogger
 

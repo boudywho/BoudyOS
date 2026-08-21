@@ -8,13 +8,13 @@
 import asyncio
 import os
 import time
-from random import choice
 
 import requests
 from telethon import Button, events
 from telethon.tl import functions, types  # pylint:ignore
 
 from pyUltroid import *
+from pyUltroid.paths import source_resource
 from pyUltroid._misc._assistant import asst_cmd, callback, in_pattern
 from pyUltroid._misc._decorators import ultroid_cmd
 from pyUltroid._misc._wrappers import eod, eor
@@ -44,8 +44,8 @@ LOG_CHANNEL = udB.get_key("LOG_CHANNEL")
 def inline_pic():
     INLINE_PIC = udB.get_key("INLINE_PIC")
     if INLINE_PIC is None:
-        INLINE_PIC = choice(ULTROID_IMAGES)
-    elif INLINE_PIC == False:
+        INLINE_PIC = str(source_resource("extras", "boudyos_avatar.jpg"))
+    elif INLINE_PIC is False:
         INLINE_PIC = None
     return INLINE_PIC
 

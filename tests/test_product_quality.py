@@ -1,5 +1,6 @@
 import ast
 import fnmatch
+import importlib.util
 import json
 import re
 import string
@@ -12,6 +13,17 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_parse_bool():
+    path = ROOT / "pyUltroid" / "security" / "parsing.py"
+    spec = importlib.util.spec_from_file_location("security_parsing", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.parse_bool
+
+
+parse_bool = load_parse_bool()
 LOCALES = ROOT / "strings" / "strings"
 MENU_KEYS = tuple(f"inline_{index}" for index in range(1, 10))
 FAUX_SMALL_CAPS = set("ᴀʙᴄᴅᴇꜰғɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡʏᴢᴴ")
@@ -102,6 +114,7 @@ class FakeDatabase:
     def __init__(self, values=None):
         self.values = dict(values or {})
         self.set_calls = []
+        self.del_calls = []
 
     def get_key(self, key):
         return self.values.get(key)
@@ -109,6 +122,10 @@ class FakeDatabase:
     def set_key(self, key, value):
         self.values[key] = value
         self.set_calls.append((key, value))
+
+    def del_key(self, key):
+        self.values.pop(key, None)
+        self.del_calls.append(key)
 
 
 def branding_clients(*, fail_avatar=False, responses=None):
@@ -177,6 +194,92 @@ class LocaleQualityTests(unittest.TestCase):
             with self.subTest(locale=name):
                 self.assertIn("BoudyOS", dashboard)
                 self.assertEqual(dashboard.count("{}"), 4)
+
+    def test_all_locales_have_no_stale_legacy_branding_variants(self):
+        forbidden_variants = (
+            "TeamUltroid",
+            "theUltroid",
+            "UseUltroid",
+            "@TeamUltroid",
+            "@UseUltroid",
+            "Teamultroid",
+            "teamultroid",
+            "TEAMULTROID",
+            "@teamultroid",
+            "@Teamultroid",
+            "@TEAMULTROID",
+            "Teamultroïde",
+            "teamultroïde",
+            "@teamultroïd",
+            "@Teamullroid",
+            "@teamullroid",
+            "teamullroid",
+            "@ટેમલટ્રોઇડ",
+            "UtheUltroid",
+            "utheultroid",
+            "Theultroid",
+            "theultroid",
+            "TheUltroid",
+            "THEULTROID",
+            "@theultroid",
+            "@Theultroid",
+            "@theUltroid",
+            "@TheUltroid",
+            "Useultroid",
+            "useultroid",
+            "useUltroid",
+            "@Useultroid",
+            "@useultroid",
+            "@USEULTROID",
+            "@UseulTroid",
+            "ulroid",
+            "Ulroid",
+            "ULROID",
+            "@ulroid",
+            "@Ulroid",
+            "@ULROID",
+            "teamulroid",
+            "Teamulroid",
+            "theulroid",
+            "Theulroid",
+            "useulroid",
+            "Useulroid",
+            "@teamulroid",
+            "@Teamulroid",
+            "@theulroid",
+            "@Theulroid",
+            "@useulroid",
+            "@Useulroid",
+            "t.me/theUltroid",
+            "t.me/theultroid",
+            "t.me/TheUltroid",
+            "t.me/TeamUltroid",
+            "t.me/teamultroid",
+            "t.me/UseUltroid",
+            "t.me/useultroid",
+            "t.me/ulroid",
+            "t.me/Ulroid",
+            "ultroïde",
+            "ultroïd",
+            "ultroides",
+            "TheUltroi",
+        )
+        for name, catalog in self.catalogs.items():
+            for key in (
+                "inline_1",
+                "inline_2",
+                "inline_3",
+                "inline_6",
+                "chats_5",
+                "chats_6",
+                "gdrive_4",
+                "help_button",
+            ):
+                if key not in catalog:
+                    continue
+                for variant in forbidden_variants:
+                    with self.subTest(locale=name, key=key, variant=variant):
+                        self.assertNotIn(variant, catalog[key])
 
 
 class ProductSurfaceTests(unittest.TestCase):
@@ -289,8 +392,9 @@ class ProductSurfaceTests(unittest.TestCase):
             "Plugins",
             "Add-ons",
             "Voice Chat",
+            "Inline tools",
             "Settings",
-            "Updates",
+            "System status",
             "Support",
             "Close",
         ):
@@ -305,6 +409,120 @@ class ProductSurfaceTests(unittest.TestCase):
         ):
             with self.subTest(callback_data=callback_data):
                 self.assertIn(callback_data, source)
+
+    def test_inline_media_defaults_to_bundled_avatar(self):
+        path = ROOT / "plugins" / "__init__.py"
+        tree = ast.parse(path.read_text("utf-8"), filename=str(path))
+        inline_pic = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "inline_pic"
+        )
+        namespace = {
+            "source_resource": lambda *parts: ROOT / "resources" / Path(*parts),
+            "udB": FakeDatabase(),
+        }
+        exec(
+            compile(ast.Module([inline_pic], type_ignores=[]), str(path), "exec"),
+            namespace,
+        )
+        bundled_avatar = str(ROOT / "resources/extras/boudyos_avatar.jpg")
+        self.assertEqual(namespace["inline_pic"](), bundled_avatar)
+
+        namespace["udB"] = FakeDatabase(
+            {"INLINE_PIC": "https://example.com/pic.jpg"}
+        )
+        self.assertEqual(
+            namespace["inline_pic"](), "https://example.com/pic.jpg"
+        )
+        namespace["udB"] = FakeDatabase({"INLINE_PIC": False})
+        self.assertIsNone(namespace["inline_pic"]())
+
+        bot_source = (ROOT / "plugins" / "bot.py").read_text("utf-8")
+        self.assertIn(
+            'inline_pic() or str(source_resource("extras", "boudyos_avatar.jpg"))',
+            bot_source,
+        )
+
+    def test_scoped_help_surfaces_have_no_stale_teamultroid_branding(self):
+        for relative in (
+            "plugins/_help.py",
+            "plugins/_inline.py",
+            "plugins/bot.py",
+            "assistant/manager/_help.py",
+            "pyUltroid/fns/helper.py",
+            "assistant/inlinestuff.py",
+            "pyUltroid/fns/tools.py",
+            "assistant/callbackstuffs.py",
+            "pyUltroid/__init__.py",
+        ):
+            with self.subTest(path=relative):
+                source = (ROOT / relative).read_text("utf-8")
+                user_facing_source = "\n".join(source.splitlines()[7:])
+                self.assertNotIn("@TeamUltroid", user_facing_source)
+                self.assertNotIn("t.me/TeamUltroid", user_facing_source)
+
+        helper_source = (ROOT / "pyUltroid/fns/helper.py").read_text("utf-8")
+        self.assertIn(
+            'output += "\\nBoudyOS • https://github.com/boudywho/BoudyOS"',
+            helper_source,
+        )
+
+        english = yaml.safe_load((LOCALES / "en.yml").read_text("utf-8"))
+        for key in ("inline_6", "chats_5", "gdrive_4", "help_button"):
+            with self.subTest(key=key):
+                self.assertNotIn("TeamUltroid", english[key])
+                self.assertNotIn("theUltroid", english[key])
+                self.assertNotIn("UseUltroid", english[key])
+        self.assertEqual(placeholders(english["help_button"]), ["i", "i"])
+        self.assertIn("BoudyOS", english["chats_5"])
+        self.assertIn("BoudyOS support", english["gdrive_4"])
+
+        inlinestuff_source = (ROOT / "assistant/inlinestuff.py").read_text(
+            "utf-8"
+        )
+        self.assertIn('"Search On Google": "go BoudyOS"', inlinestuff_source)
+        self.assertIn(
+            '"Piston Eval": "run javascript console.log(\'Hello BoudyOS\')"',
+            inlinestuff_source,
+        )
+        self.assertIn('"Twitter User": "twitter telegram"', inlinestuff_source)
+        self.assertNotIn("theultroid", inlinestuff_source)
+
+        tools_source = (ROOT / "pyUltroid/fns/tools.py").read_text("utf-8")
+        self.assertIn(
+            'kwargs["title"] = kwargs.get("title", "BoudyOS")', tools_source
+        )
+        self.assertIn(
+            'else "https://github.com/boudywho/BoudyOS"', tools_source
+        )
+
+        cb_source = (ROOT / "assistant/callbackstuffs.py").read_text("utf-8")
+        self.assertNotIn("@ultroidplugins", cb_source)
+        self.assertIn(
+            "Only install plugins from trusted BoudyOS repositories", cb_source
+        )
+
+        init_source = (ROOT / "pyUltroid/__init__.py").read_text("utf-8")
+        self.assertIn('print("pyUltroid - BoudyOS")', init_source)
+
+    def test_manager_help_has_dashboard_navigation(self):
+        source = (ROOT / "assistant" / "manager" / "_help.py").read_text(
+            "utf-8"
+        )
+        self.assertIn('Button.inline("Dashboard", "open")', source)
+        self.assertIn('Button.url("Add me to Group", url)', source)
+        for callback_key in ("Admintools", "locks", "Utils", "Misc"):
+            with self.subTest(callback_key=callback_key):
+                self.assertIn(f'"{callback_key}"', source)
+
+    def test_dual_mode_buttons_use_distinct_explicit_callbacks(self):
+        source = (ROOT / "assistant" / "callbackstuffs.py").read_text("utf-8")
+        self.assertIn('Button.inline("Dual Mode On", "dmon")', source)
+        self.assertIn('Button.inline("Dual Mode Off", "dmoff")', source)
+        self.assertIn('@callback("dmon", owner=True)', source)
+        self.assertIn('@callback("dmoff", owner=True)', source)
+        self.assertIn('@callback("dmof", owner=True)', source)
 
     def test_bundled_brand_assets_and_startup_fallback(self):
         for relative in (
@@ -431,6 +649,206 @@ class AssistantBrandingTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(branding["BOUDYOS_BRAND_VERSION_KEY"], database.values)
         commands = [call.args[1] for call in user.send_message.await_args_list]
         self.assertNotIn("/setname", commands)
+
+
+class DualModeBehaviorTests(unittest.IsolatedAsyncioTestCase):
+    def _load_handlers(self, initial_values):
+        path = ROOT / "assistant" / "callbackstuffs.py"
+        tree = ast.parse(path.read_text("utf-8"), filename=str(path))
+        functions = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.AsyncFunctionDef)
+            and node.name
+            in {"_set_dual_mode", "dual_mode_on", "dual_mode_off", "rhwhe"}
+        ]
+        database = FakeDatabase(initial_values)
+        namespace = {
+            "udB": database,
+            "get_back_button": lambda callback_data: callback_data,
+            "parse_bool": parse_bool,
+            "callback": lambda *args, **kwargs: lambda fn: fn,
+        }
+        exec(
+            compile(ast.Module(functions, type_ignores=[]), str(path), "exec"),
+            namespace,
+        )
+        return namespace, database
+
+    async def test_explicit_dual_mode_actions_are_idempotent(self):
+        namespace, database = self._load_handlers({"DUAL_MODE": "True"})
+        event = SimpleNamespace(edit=AsyncMock())
+
+        await namespace["_set_dual_mode"](event, True)
+        self.assertEqual(database.set_calls, [])
+        self.assertEqual(database.del_calls, [])
+
+        await namespace["_set_dual_mode"](event, False)
+        await namespace["_set_dual_mode"](event, False)
+        self.assertEqual(database.del_calls, ["DUAL_MODE"])
+
+        await namespace["_set_dual_mode"](event, True)
+        await namespace["_set_dual_mode"](event, True)
+        self.assertEqual(database.set_calls, [("DUAL_MODE", "True")])
+
+    async def test_dual_mode_initial_state_matrix_on_and_off(self):
+        initial_states = [
+            {"DUAL_MODE": "False"},
+            {"DUAL_MODE": False},
+            {"DUAL_MODE": "0"},
+            {},
+        ]
+        for initial in initial_states:
+            with self.subTest(initial=initial, action="on"):
+                namespace, database = self._load_handlers(initial)
+                event = SimpleNamespace(edit=AsyncMock())
+                await namespace["dual_mode_on"](event)
+                self.assertEqual(database.set_calls, [("DUAL_MODE", "True")])
+                self.assertEqual(database.get_key("DUAL_MODE"), "True")
+                event.edit.assert_awaited_once_with(
+                    "Dual Mode : On", buttons="cbs_otvars"
+                )
+                await namespace["dual_mode_on"](event)
+                self.assertEqual(database.set_calls, [("DUAL_MODE", "True")])
+
+            with self.subTest(initial=initial, action="off"):
+                namespace, database = self._load_handlers(initial)
+                event = SimpleNamespace(edit=AsyncMock())
+                await namespace["dual_mode_off"](event)
+                if "DUAL_MODE" in initial:
+                    self.assertEqual(database.del_calls, ["DUAL_MODE"])
+                    self.assertIsNone(database.get_key("DUAL_MODE"))
+                else:
+                    self.assertEqual(database.del_calls, [])
+                event.edit.assert_awaited_once_with(
+                    "Dual Mode : Off", buttons="cbs_otvars"
+                )
+                await namespace["dual_mode_off"](event)
+                if "DUAL_MODE" in initial:
+                    self.assertEqual(database.del_calls, ["DUAL_MODE"])
+                else:
+                    self.assertEqual(database.del_calls, [])
+
+    async def test_legacy_dmof_toggle_uses_parse_bool(self):
+        for initial in (
+            {"DUAL_MODE": "False"},
+            {"DUAL_MODE": False},
+            {"DUAL_MODE": "0"},
+            {},
+        ):
+            with self.subTest(initial=initial):
+                namespace, database = self._load_handlers(initial)
+                event = SimpleNamespace(edit=AsyncMock())
+                await namespace["rhwhe"](event)
+                self.assertEqual(database.set_calls, [("DUAL_MODE", "True")])
+                self.assertEqual(database.get_key("DUAL_MODE"), "True")
+                event.edit.assert_awaited_once_with(
+                    "Dual Mode : On", buttons="cbs_otvars"
+                )
+
+        namespace, database = self._load_handlers({"DUAL_MODE": "True"})
+        event = SimpleNamespace(edit=AsyncMock())
+        await namespace["rhwhe"](event)
+        self.assertEqual(database.del_calls, ["DUAL_MODE"])
+        self.assertIsNone(database.get_key("DUAL_MODE"))
+        event.edit.assert_awaited_once_with(
+            "Dual Mode : Off", buttons="cbs_otvars"
+        )
+
+
+class InlineAliveBehaviorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_inline_alive_uses_builder_photo_or_article_without_github_fallback(
+        self,
+    ):
+        path = ROOT / "plugins" / "_inline.py"
+        source = path.read_text("utf-8")
+        self.assertNotIn("raw.githubusercontent.com", source)
+
+        tree = ast.parse(source, filename=str(path))
+        inline_alive_node = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.AsyncFunctionDef)
+            and node.name == "inline_alive"
+        )
+
+        builder = SimpleNamespace(
+            photo=AsyncMock(return_value="photo_result"),
+            article=AsyncMock(return_value="article_result"),
+        )
+        event = SimpleNamespace(
+            builder=builder,
+            answer=AsyncMock(),
+        )
+
+        # 1. Configured local bundled path
+        bundled_path = str(ROOT / "resources/extras/boudyos_avatar.jpg")
+        namespace = {
+            "inline_pic": lambda: bundled_path,
+            "SUP_BUTTONS": [[]],
+            "in_pattern": lambda *args, **kwargs: lambda fn: fn,
+        }
+        exec(
+            compile(
+                ast.Module([inline_alive_node], type_ignores=[]),
+                str(path),
+                "exec",
+            ),
+            namespace,
+        )
+        await namespace["inline_alive"](event)
+        builder.photo.assert_awaited_once_with(
+            file=bundled_path,
+            text="**BoudyOS**",
+            buttons=[[]],
+            link_preview=False,
+        )
+        event.answer.assert_awaited_once_with(
+            ["photo_result"],
+            private=True,
+            cache_time=300,
+            switch_pm="BoudyOS",
+            switch_pm_param="start",
+        )
+
+        # 2. Configured remote override
+        builder.photo.reset_mock()
+        event.answer.reset_mock()
+        namespace["inline_pic"] = lambda: "https://example.com/override.jpg"
+        await namespace["inline_alive"](event)
+        builder.photo.assert_awaited_once_with(
+            file="https://example.com/override.jpg",
+            text="**BoudyOS**",
+            buttons=[[]],
+            link_preview=False,
+        )
+        event.answer.assert_awaited_once_with(
+            ["photo_result"],
+            private=True,
+            cache_time=300,
+            switch_pm="BoudyOS",
+            switch_pm_param="start",
+        )
+
+        # 3. Explicitly disabled media
+        builder.article.reset_mock()
+        event.answer.reset_mock()
+        namespace["inline_pic"] = lambda: None
+        await namespace["inline_alive"](event)
+        builder.article.assert_awaited_once_with(
+            title="BoudyOS",
+            description="Personal Telegram workspace",
+            text="**BoudyOS**",
+            buttons=[[]],
+            link_preview=False,
+        )
+        event.answer.assert_awaited_once_with(
+            ["article_result"],
+            private=True,
+            cache_time=300,
+            switch_pm="BoudyOS",
+            switch_pm_param="start",
+        )
 
 
 if __name__ == "__main__":
