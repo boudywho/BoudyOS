@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-21T13:45:28Z",
+  "title": "Design System: BoudyOS",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Deep navy canvas",
+        "canonical": "#050b1d",
+        "tonalRamp": ["#02040b", "#050b1d", "#08122a", "#0d1d46", "#172b5a", "#294477", "#6c86b2", "#c3d4f0"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Navy surface",
+        "canonical": "#0d1d46",
+        "tonalRamp": ["#050b1d", "#0d1d46", "#14295a", "#1f3d72", "#3b5d8d", "#6c86b2", "#a6b8d3", "#e4ebf7"]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Electric workspace blue",
+        "canonical": "#2670ff",
+        "tonalRamp": ["#061941", "#0b2e79", "#1147b8", "#2670ff", "#4e8bff", "#7eacff", "#b0caff", "#e5edff"]
+      },
+      "accent-cyan": {
+        "role": "primary",
+        "displayName": "Terminal cyan",
+        "canonical": "#28d8f5",
+        "tonalRamp": ["#063943", "#086b7a", "#0ca4b9", "#28d8f5", "#5be3f7", "#91edf9", "#c5f6fc", "#e9fdff"]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Signal white",
+        "canonical": "#f5f9ff",
+        "tonalRamp": ["#1b2433", "#334157", "#566983", "#8294ad", "#aebbd0", "#cbd5e3", "#e3e9f2", "#f5f9ff"]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Cool mist",
+        "canonical": "#c3d4f0",
+        "tonalRamp": ["#1a263a", "#344b6e", "#55709b", "#7692bd", "#9bb2d3", "#c3d4f0", "#dae5f5", "#f0f5fc"]
+      }
+    },
+    "typographyMeta": {
+      "body": {
+        "displayName": "Telegram system sans",
+        "purpose": "Native message and button copy; prioritize scanability over branding theater."
+      },
+      "label": {
+        "displayName": "Noto Sans label",
+        "purpose": "Short context labels in authored BoudyOS media."
+      }
+    },
+    "motion": [],
+    "breakpoints": [],
+    "assetProvenance": [
+      {
+        "path": "resources/extras/boudyos_avatar.jpg",
+        "origin": "Existing BoudyOS canonical brand asset in the repository."
+      },
+      {
+        "path": "resources/extras/inline.jpg",
+        "origin": "Generated locally by scripts/build_boudyos_inline_banner.py from the canonical BoudyOS avatar and deterministic palette/layout code."
+      }
+    ]
+  },
+  "components": [],
+  "narrative": {
+    "northStar": "The focused control surface",
+    "overview": "BoudyOS is operated inside Telegram. Its UI uses native messages and inline keyboards as a calm command surface: context first, grouped actions second, progressive disclosure for detail, and a reversible path at every step.",
+    "keyCharacteristics": [
+      "Telegram-native text-labeled controls",
+      "Deep navy with electric blue and cyan signals",
+      "BoudyOS language in user-facing copy",
+      "Deterministic bundled media by default"
+    ],
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "body": "Blue and cyan indicate brand or action. Do not scatter bright color across inactive labels or decorative copy.",
+        "section": "colors"
+      },
+      {
+        "name": "The Plain Label Rule",
+        "body": "Every button names its action in words. Emoji may be user-configured for plugin lists, but never carries the only meaning of a control.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do use BoudyOS in user-facing help and dashboard copy.",
+      "Do keep every operational screen reversible.",
+      "Do default to immutable bundled media."
+    ],
+    "donts": [
+      "Don't reintroduce upstream branding into user-facing surfaces.",
+      "Don't use random external images as the default.",
+      "Don't ship visible On/Off controls that share a toggle callback."
+    ]
+  }
+}

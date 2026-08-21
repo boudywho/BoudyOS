@@ -22,6 +22,7 @@ from telethon.errors.rpcerrorlist import (
 )
 
 from pyUltroid.version import __version__ as UltVer
+from pyUltroid.paths import source_resource
 from pyUltroid.security.updater import (
     check_for_update,
     format_update_report,
@@ -38,7 +39,6 @@ from . import (
     ATRA_COL,
     LOGS,
     OWNER_NAME,
-    ULTROID_IMAGES,
     Button,
     Carbon,
     Telegraph,
@@ -66,7 +66,7 @@ from . import (
 
 
 def ULTPIC():
-    return inline_pic() or choice(ULTROID_IMAGES)
+    return inline_pic() or str(source_resource("extras", "boudyos_avatar.jpg"))
 
 
 buttons = [
@@ -298,7 +298,7 @@ async def inline_alive(ult):
                     await builder.document(
                         pic,
                         title="Inline Alive",
-                        description="@TeamUltroid",
+                        description="BoudyOS",
                         parse_mode="html",
                         buttons=buttons,
                     )

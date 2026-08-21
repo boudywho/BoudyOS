@@ -35,6 +35,7 @@ from pyUltroid.security.updater import (
     format_update_report,
     request_deployment,
 )
+from pyUltroid.security.parsing import parse_bool
 from pyUltroid.security.status import write_update_status
 
 from . import *
@@ -172,8 +173,8 @@ _buttons = {
         "text": "Configure dual mode.",
         "buttons": [
             [
-                Button.inline("Dual Mode On", "dmof"),
-                Button.inline("Dual Mode Off", "dmof"),
+                Button.inline("Dual Mode On", "dmon"),
+                Button.inline("Dual Mode Off", "dmoff"),
             ],
             [Button.inline("Dual Mode Hndlr", "dmhn")],
             [Button.inline("Back", data="cbs_otvars")],
@@ -462,16 +463,32 @@ async def _(e):
     )
 
 
-@callback("dmof", owner=True)
-async def rhwhe(e):
-    if udB.get_key("DUAL_MODE"):
+async def _set_dual_mode(e, enabled):
+    raw = udB.get_key("DUAL_MODE")
+    if enabled:
+        if not parse_bool(raw):
+            udB.set_key("DUAL_MODE", "True")
+    elif raw is not None:
         udB.del_key("DUAL_MODE")
-        key = "Off"
-    else:
-        udB.set_key("DUAL_MODE", "True")
-        key = "On"
+    key = "On" if enabled else "Off"
     Msg = f"Dual Mode : {key}"
     await e.edit(Msg, buttons=get_back_button("cbs_otvars"))
+
+
+@callback("dmon", owner=True)
+async def dual_mode_on(e):
+    await _set_dual_mode(e, True)
+
+
+@callback("dmoff", owner=True)
+async def dual_mode_off(e):
+    await _set_dual_mode(e, False)
+
+
+@callback("dmof", owner=True)
+async def rhwhe(e):
+    """Compatibility toggle for buttons sent by older BoudyOS releases."""
+    await _set_dual_mode(e, not parse_bool(udB.get_key("DUAL_MODE")))
 
 
 @callback("dmhn", owner=True)
@@ -543,7 +560,7 @@ async def pluginch(event):
     name = "Plugin Channel"
     async with event.client.conversation(pru) as conv:
         await conv.send_message(
-            "Send id or username of a channel from where u want to install all plugins\n\nOur Channel~ @ultroidplugins\n\nUse /cancel to cancel.",
+            "Send id or username of a channel from where u want to install all plugins\n\nOnly install plugins from trusted BoudyOS repositories or sources.\n\nUse /cancel to cancel.",
         )
         response = conv.wait_event(events.NewMessage(chats=pru))
         response = await response

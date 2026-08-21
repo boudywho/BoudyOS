@@ -577,8 +577,8 @@ async def inline_tl(ult):
             [
                 await ult.builder.article(
                     title="How to Use?",
-                    description="Tl Searcher by Ultroid",
-                    url="https://t.me/TeamUltroid",
+                    description="TL Searcher by BoudyOS",
+                    url="https://github.com/boudywho/BoudyOS",
                     text=text,
                 )
             ],
@@ -601,7 +601,7 @@ async def inline_tl(ult):
                 await ult.builder.article(
                     title=key.__name__,
                     description=tyyp,
-                    url="https://t.me/TeamUltroid",
+                    url="https://github.com/boudywho/BoudyOS",
                     text=text[:4000],
                 )
             )
@@ -613,12 +613,12 @@ InlinePlugin.update(
     {
         "Play Store Apps": "app telegram",
         "Modded Apps": "mods minecraft",
-        "Search On Google": "go TeamUltroid",
+        "Search On Google": "go BoudyOS",
         "WhiSper": "wspr @username Hello🎉",
         "YouTube Downloader": "yt Ed Sheeran Perfect",
-        "Piston Eval": "run javascript console.log('Hello Ultroid')",
+        "Piston Eval": "run javascript console.log('Hello BoudyOS')",
         "OrangeFox🦊": "ofox beryllium",
-        "Twitter User": "twitter theultroid",
+        "Twitter User": "twitter telegram",
         "Fdroid Search": "fdroid telegram",
         "Saavn search": "saavn",
         "Tl Search": "tl",

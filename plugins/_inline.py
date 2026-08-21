@@ -112,27 +112,25 @@ SUP_BUTTONS = [
 
 @in_pattern(owner=True, func=lambda x: not x.text)
 async def inline_alive(o):
-    TLINK = inline_pic() or (
-        "https://raw.githubusercontent.com/boudywho/BoudyOS/main/"
-        "resources/extras/boudyos_avatar.jpg"
-    )
+    pic = inline_pic()
     MSG = "**BoudyOS**"
-    WEB0 = InputWebDocument(TLINK, 0, "image/jpeg", [])
-    RES = [
-        await o.builder.article(
-            type="photo",
+    if pic:
+        result = await o.builder.photo(
+            file=pic,
             text=MSG,
-            include_media=True,
             buttons=SUP_BUTTONS,
+            link_preview=False,
+        )
+    else:
+        result = await o.builder.article(
             title="BoudyOS",
             description="Personal Telegram workspace",
-            url=TLINK,
-            thumb=WEB0,
-            content=InputWebDocument(TLINK, 0, "image/jpg", []),
+            text=MSG,
+            buttons=SUP_BUTTONS,
+            link_preview=False,
         )
-    ]
     await o.answer(
-        RES,
+        [result],
         private=True,
         cache_time=300,
         switch_pm="BoudyOS",
@@ -242,7 +240,7 @@ async def uptd_plugin(event):
                 help_ += "\n"
     if not help_:
         help_ = f"{file} has no Detailed Help!"
-    help_ += "\n© @TeamUltroid"
+    help_ += "\n\nBoudyOS help • github.com/boudywho/BoudyOS"
     buttons = []
     if inline_pic():
         data = f"sndplug_{key}_{file}"
@@ -425,7 +423,7 @@ async def ibuild(e):
                             _pic,
                             title="BoudyOS operator",
                             text=txt,
-                            description="@TeamUltroid",
+                            description="BoudyOS",
                             buttons=btn,
                             link_preview=False,
                         )
@@ -441,7 +439,7 @@ async def ibuild(e):
                         title="BoudyOS operator",
                         type=_type,
                         text=txt,
-                        description="@TeamUltroid",
+                        description="BoudyOS",
                         include_media=include_media,
                         buttons=btn,
                         thumb=cont,
