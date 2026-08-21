@@ -615,7 +615,6 @@ InlinePlugin.update(
         "Modded Apps": "mods minecraft",
         "Search On Google": "go BoudyOS",
         "WhiSper": "wspr @username Hello🎉",
-        "YouTube Downloader": "yt Ed Sheeran Perfect",
         "Piston Eval": "run javascript console.log('Hello BoudyOS')",
         "OrangeFox🦊": "ofox beryllium",
         "Twitter User": "twitter telegram",

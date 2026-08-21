@@ -11,6 +11,28 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReleaseContractTests(unittest.TestCase):
+    def test_owner_ytdl_replaces_inline_youtube_surface(self):
+        self.assertFalse((ROOT / "assistant/ytdl.py").exists())
+        inline = (ROOT / "assistant/inlinestuff.py").read_text("utf-8")
+        self.assertNotIn('"YouTube Downloader"', inline)
+        assistant_sources = "\n".join(
+            path.read_text("utf-8") for path in (ROOT / "assistant").glob("*.py")
+        )
+        self.assertNotRegex(assistant_sources, r"@in_pattern\(\s*[\"']yt[\"']")
+
+        plugin = (ROOT / "plugins/ytdl.py").read_text("utf-8")
+        self.assertIn('pattern="yt( |$)(.*)"', plugin)
+        self.assertIn("owner_only=True", plugin)
+        self.assertIn("owner=True", plugin)
+        self.assertIn('data=f"ytdl:q:{state.token}:{item.key}"', plugin)
+        self.assertNotIn('data=f"ytdl:q:{state.url}', plugin)
+        self.assertIn("get_bound(", plugin)
+        self.assertNotIn("best_under_limit", plugin)
+        self.assertIn("is_command_message(", plugin)
+
+        legacy = (ROOT / "plugins/youtube.py").read_text("utf-8")
+        self.assertIn('pattern="yt(a|v|sa|sv) ?(.*)"', legacy)
+
     def test_product_and_upstream_versions_are_distinct(self):
         namespace = {}
         exec((ROOT / "pyUltroid/version.py").read_text("utf-8"), namespace)
