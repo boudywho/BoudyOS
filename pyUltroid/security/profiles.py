@@ -20,7 +20,7 @@ PROFILE_PLUGINS = {
             "audiotools", "beautify", "compressor", "converter", "fileshare",
             "giftools", "imagetools", "mediatools", "pdftools", "qrcode",
             "resize", "search", "stickertools", "unsplash", "videotools",
-            "webupload", "words", "writer", "youtube", "ziptools",
+            "webupload", "words", "writer", "youtube", "ytdl", "ziptools",
         )
     ),
     "admin": frozenset(
