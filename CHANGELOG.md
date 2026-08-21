@@ -1,5 +1,11 @@
 # Changelog
 
+## BoudyOS 2.2.3 — UI and media workflow polish
+
+- Polished BoudyOS UI and branding, removed inline YouTube search, and added a
+  Telethon-native self-userbot `yt` media workflow with quality and timestamp
+  selection, cleanup, and cancellation.
+
 ## BoudyOS 2.2.2 — Python 3.10 safe-path compatibility
 
 - Replaced the Python 3.11-only `-P` service flag with an immutable launcher
