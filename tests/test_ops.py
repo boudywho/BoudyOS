@@ -1590,7 +1590,7 @@ PY
         self.assertIn("boudyos-migrate-ultroid rollback", documentation)
         self.assertIn("original ultroid.service was restored", source)
 
-    def test_python310_launcher_excludes_writable_working_directory(self):
+    def test_python310_launcher_excludes_writable_work_and_signals_module_mode(self):
         launcher = ROOT / "ops/boudyos-python-launcher"
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -1601,13 +1601,22 @@ PY
             (work / "pyUltroid").mkdir(parents=True)
             shutil.copy2(launcher, source / "ops/boudyos-python-launcher")
             result_path = root / "result.txt"
+            (source / "pyUltroid/__init__.py").write_text(
+                "import sys\n"
+                "if sys.argv[0] != '-m':\n"
+                "    raise SystemExit('module-mode startup not signaled')\n"
+                "MODULE_MODE = True\n",
+                "utf-8",
+            )
             (source / "pyUltroid/__main__.py").write_text(
                 "import os, sys\n"
                 "from pathlib import Path\n"
+                "from pyUltroid import MODULE_MODE\n"
                 "work = Path(os.environ['TEST_WORK']).resolve()\n"
                 "paths = {Path(p).resolve() for p in sys.path if p}\n"
                 "Path(os.environ['TEST_RESULT']).write_text("
-                "'source' if work not in paths else 'unsafe', encoding='ascii')\n",
+                "'source-module' if work not in paths and MODULE_MODE else 'unsafe', "
+                "encoding='ascii')\n",
                 "utf-8",
             )
             (work / "pyUltroid/__main__.py").write_text(
@@ -1628,7 +1637,7 @@ PY
                 check=False,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(result_path.read_text("ascii"), "source")
+            self.assertEqual(result_path.read_text("ascii"), "source-module")
 
     def test_legacy_restart_stability_does_not_require_managed_heartbeat(self):
         script = ROOT / "ops/boudyos-migrate-ultroid"

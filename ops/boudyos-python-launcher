@@ -29,4 +29,5 @@ for entry in sys.path:
 sys.path[:] = clean_path
 sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+sys.argv[0] = "-m"
 runpy.run_module("pyUltroid", run_name="__main__", alter_sys=True)
