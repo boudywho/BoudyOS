@@ -17,6 +17,11 @@ from .timestamps import (
     parse_timestamp_ranges,
 )
 from .urls import URLValidationError, extract_media_url
+from .wizard import (
+    parse_confirmation_choice,
+    parse_quality_choice,
+    parse_timestamp_choice,
+)
 
 __all__ = (
     "DownloadCancelled",
@@ -30,5 +35,8 @@ __all__ = (
     "build_format_choices",
     "extract_media_url",
     "is_command_message",
+    "parse_confirmation_choice",
+    "parse_quality_choice",
+    "parse_timestamp_choice",
     "parse_timestamp_ranges",
 )

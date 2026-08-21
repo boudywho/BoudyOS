@@ -5,7 +5,7 @@
 # PLease read the GNU Affero General Public License in
 # <https://www.gnu.org/licenses/agpl-3.0.html>.
 
-"""Bounded, expiring request state for callback-driven downloads."""
+"""Bounded, expiring request state for interactive downloads."""
 
 import secrets
 import threading

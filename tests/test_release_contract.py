@@ -22,13 +22,27 @@ class ReleaseContractTests(unittest.TestCase):
 
         plugin = (ROOT / "plugins/ytdl.py").read_text("utf-8")
         self.assertIn('pattern="yt( |$)(.*)"', plugin)
+        self.assertIn('pattern="ytcancel$"', plugin)
         self.assertIn("owner_only=True", plugin)
-        self.assertIn("owner=True", plugin)
-        self.assertIn('data=f"ytdl:q:{state.token}:{item.key}"', plugin)
-        self.assertNotIn('data=f"ytdl:q:{state.url}', plugin)
+        self.assertNotIn("Button", plugin)
+        self.assertNotIn("asst", plugin)
+        self.assertNotIn("callback", plugin)
+        self.assertIn("events.NewMessage(outgoing=True)", plugin)
+        self.assertIn("parse_quality_choice(", plugin)
+        self.assertIn("parse_timestamp_choice(", plugin)
+        self.assertIn("parse_confirmation_choice(", plugin)
+        self.assertIn("ultroid_bot.send_message(", plugin)
+        self.assertIn("ultroid_bot.edit_message(", plugin)
         self.assertIn("get_bound(", plugin)
         self.assertNotIn("best_under_limit", plugin)
         self.assertIn("is_command_message(", plugin)
+        for surface in (
+            "Send a number, quality key/name",
+            "Custom range (`custom`)",
+            "Confirm (`confirm` / `yes`)",
+            "Change timestamp (`time` / `timestamp`)",
+        ):
+            self.assertIn(surface, plugin)
 
         legacy = (ROOT / "plugins/youtube.py").read_text("utf-8")
         self.assertIn('pattern="yt(a|v|sa|sv) ?(.*)"', legacy)
@@ -36,8 +50,8 @@ class ReleaseContractTests(unittest.TestCase):
     def test_product_and_upstream_versions_are_distinct(self):
         namespace = {}
         exec((ROOT / "pyUltroid/version.py").read_text("utf-8"), namespace)
-        self.assertEqual(namespace["BOUDYOS_VERSION"], "2.2.5")
-        self.assertEqual(namespace["ultroid_version"], "2.2.5")
+        self.assertEqual(namespace["BOUDYOS_VERSION"], "2.2.6")
+        self.assertEqual(namespace["ultroid_version"], "2.2.6")
         self.assertEqual(namespace["__version__"], "2026.04.03")
 
     def test_python310_service_uses_immutable_safe_path_launcher(self):
