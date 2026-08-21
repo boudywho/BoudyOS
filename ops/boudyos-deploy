@@ -325,6 +325,10 @@ verify_forward_history() {
     }
 }
 
+has_shell_shebang() {
+    head -n1 "${1:?script required}" | grep -qE '^#!.*(ba)?sh([[:space:]]|$)'
+}
+
 preflight_release() {
     if [[ "$DRY_RUN" == "1" ]]; then
         json_status "preflight" "dry-run preflight passed"
@@ -354,6 +358,7 @@ with open(sys.argv[1], encoding="utf-8") as stream:
 PY
     done < <(find "$source" -type f \( -name '*.yml' -o -name '*.yaml' \) -not -path '*/.git/*' -print0)
     while IFS= read -r -d '' script; do
+        has_shell_shebang "$script" || continue
         bash -n "$script"
     done < <(find "$source/ops" -type f -perm -0100 -print0)
     git -C "$source" diff --check
