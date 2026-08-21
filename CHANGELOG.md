@@ -1,5 +1,10 @@
 # Changelog
 
+## BoudyOS 2.2.4 — deployment preflight classifier fix
+
+- Limited preflight shell syntax checks to executable files with shell shebangs,
+  excluding the Python launcher from `bash -n` validation.
+
 ## BoudyOS 2.2.3 — UI and media workflow polish
 
 - Polished BoudyOS UI and branding, removed inline YouTube search, and added a

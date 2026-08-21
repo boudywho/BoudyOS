@@ -591,6 +591,34 @@ class HealthPolicyTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn('"dry_run":true', result.stdout)
 
+    def test_preflight_shell_classifier_excludes_python_launcher(self):
+        deploy = ROOT / "ops/boudyos-deploy"
+        launcher = ROOT / "ops/boudyos-python-launcher"
+        source = deploy.read_text("utf-8")
+        self.assertIn(
+            "grep -qE '^#!.*(ba)?sh([[:space:]]|$)'",
+            source,
+        )
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                'source "$DEPLOY"; has_shell_shebang "$DEPLOY"; '
+                '! has_shell_shebang "$LAUNCHER"',
+            ],
+            env={
+                **os.environ,
+                "BOUDYOS_DEPLOY_LIB": "1",
+                "DEPLOY": str(deploy),
+                "LAUNCHER": str(launcher),
+            },
+            text=True,
+            capture_output=True,
+            timeout=3,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_request_is_fast_atomic_and_requires_real_commit(self):
         script = ROOT / "ops/boudyos-deploy"
         with tempfile.TemporaryDirectory() as tmp:
