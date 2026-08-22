@@ -285,7 +285,7 @@ already_complete() {
     [[ "$(enabled_state "$TARGET_SERVICE")" == "$(<"$RECORD/managed/enabled-state")" ]] || return 1
     ! systemctl is-active --quiet "$LEGACY_SERVICE" >/dev/null 2>&1 || return 1
     legacy_state="$(enabled_state "$LEGACY_SERVICE")"
-    [[ -z "$legacy_state" || "$legacy_state" == disabled ]] || return 1
+    [[ -z "$legacy_state" || "$legacy_state" == disabled || "$legacy_state" == not-found ]] || return 1
     pid="$(main_pid "$TARGET_SERVICE")" || return 1
     [[ "$pid" =~ ^[1-9][0-9]*$ ]] &&
         ready_for_pid "$TARGET_SERVICE" "$pid" && health_is_healthy

@@ -102,7 +102,7 @@ PY
       if [[ -f "$BOUDYOS_RENAME_UNIT_DIR/$service" ]]; then
         cat "$FAKE_STATE/legacy-enabled"
       else
-        exit 1
+        echo not-found; exit 1
       fi
     elif [[ -f "$FAKE_STATE/target-enabled" ]]; then
       cat "$FAKE_STATE/target-enabled"
@@ -243,12 +243,12 @@ esac
                 env=env, text=True, capture_output=True, check=False,
             )
             self.assertNotEqual(legacy_state.returncode, 0)
-            self.assertEqual(legacy_state.stdout, "")
+            self.assertEqual(legacy_state.stdout.strip(), "not-found")
             before = {
                 path: (path.read_bytes(), path.stat().st_mtime_ns)
                 for path in [unit_dir / "boudyos.service", *configs]
             }
-            second = self.run_rename(env)
+            second = self.run_rename(env, "plan")
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertIn("already migrated", second.stdout)
             for path, value in before.items():
