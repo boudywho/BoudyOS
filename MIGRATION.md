@@ -84,6 +84,22 @@ writable cwd, and
 requires fresh PID-correlated readiness. Failure removes the drop-in and
 restarts the original unit.
 
+After activation and production verification, rename only the application
+unit to its canonical `boudyos.service` name:
+
+```bash
+sudo /usr/local/sbin/boudyos-rename-service plan
+sudo /usr/local/sbin/boudyos-rename-service rename
+```
+
+The rename preserves the complete effective legacy unit and drop-in bytes and
+changes only `ultroid.service` selectors in the root-managed deploy, backup,
+and health configuration. The production Unix user/group remain `ultroid`,
+and `/opt/ultroid`, existing BoudyOS runtime/state paths and environment
+values, Telegram identifiers, and `ultroid-redis.service` remain compatibility
+surfaces. A repeated rename reports that migration is already complete and
+does not mutate the installation.
+
 ## Rollback
 
 For a deployed BoudyOS release:
@@ -95,7 +111,7 @@ sudo /usr/local/sbin/boudyos-deploy rollback
 The helper does not report success until the retained prior release is active
 and fresh-ready. It does not rewrite database keys.
 
-For the legacy unit migration:
+For the legacy layout migration, before the separate service-name rename:
 
 ```bash
 sudo /usr/local/sbin/boudyos-migrate-ultroid rollback
@@ -110,5 +126,12 @@ the root-only snapshot and staged release are retained for safe reactivation.
 Verify Redis, session
 login, assistant connection, media writes, and a restore drill before removing
 any legacy files.
+
+The service-name command itself automatically restores the exact unit,
+drop-ins, selectors, enabled state, and running `ultroid.service` when any
+rename or target verification step fails. The manual legacy-layout rollback
+above intentionally remains the procedure while the application unit is still
+named `ultroid.service`; complete any decision to use it before performing the
+final canonical-name migration.
 
 The upstream py-Ultroid version remains `2026.04.03`; BoudyOS is `2.2.2`.

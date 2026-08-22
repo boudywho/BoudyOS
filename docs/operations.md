@@ -31,6 +31,35 @@ installed environment and this VCS result must be reviewed separately.
 
 ## Transactional releases
 
+The canonical application unit name is `boudyos.service`. Existing production
+installations that still run the application through `ultroid.service` must use
+the transactional service-name migration after the managed BoudyOS activation
+is healthy:
+
+```bash
+install -o root -g root -m 0755 ops/boudyos-rename-service \
+  /usr/local/sbin/boudyos-rename-service
+sudo /usr/local/sbin/boudyos-rename-service plan
+sudo /usr/local/sbin/boudyos-rename-service rename
+```
+
+The command copies the exact legacy unit and complete drop-in directory to the
+canonical name, rewrites only the unit-name selectors in `deploy.conf`,
+`backup.conf`, and `health.conf`, and verifies fresh PID-correlated readiness
+and health before removing the legacy unit files. It retains the root-only
+snapshot and canonical-state record at `/var/lib/boudyos/service-rename`,
+restores the snapshot and restarts `ultroid.service` on failure, and is a no-op
+after a verified successful migration. The Unix account and group remain
+`ultroid`, as do `/opt/ultroid`, the existing BoudyOS runtime/state and
+environment values, Telegram identifiers, and the required
+`ultroid-redis.service` unit. A service rename does not authorize renaming any
+of those surfaces. Nonstandard test or staging locations may override
+`BOUDYOS_UNIT_DIR`,
+`BOUDYOS_DEPLOY_CONFIG`, `BOUDYOS_BACKUP_CONFIG`,
+`BOUDYOS_HEALTH_CONFIG`, `BOUDYOS_READY_FILE`,
+`BOUDYOS_HEALTH_COMMAND`, `BOUDYOS_RENAME_RECORD`, and
+`BOUDYOS_RENAME_LOCK`; production should use the defaults.
+
 Install the helper root-owned and non-group/world-writable. Before enabling or
 starting any BoudyOS unit, install and run the path provisioner:
 

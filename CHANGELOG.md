@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — canonical service name
+
+- Added a root-only, dry-runnable, idempotent migration from
+  `ultroid.service` to the canonical `boudyos.service`, with exact unit/drop-in
+  preservation, atomic selector rewrites, fresh PID-correlated readiness and
+  health verification, enabled-state preservation, and verified rollback to
+  the restarted legacy service.
+- Kept the `ultroid` Unix account and state, `/opt/ultroid`, existing runtime
+  and environment values, Telegram identifiers, and `ultroid-redis.service`
+  unchanged as compatibility surfaces.
+
 ## BoudyOS 2.2.6 — self-userbot text wizard
 
 - Added a user-account-only numbered `.yt` wizard with no assistant-bot
