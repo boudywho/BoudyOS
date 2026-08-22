@@ -13,6 +13,7 @@ readonly DEPLOY_CONFIG="${BOUDYOS_DEPLOY_CONFIG:-/etc/boudyos/deploy.conf}"
 readonly BACKUP_CONFIG="${BOUDYOS_BACKUP_CONFIG:-/etc/boudyos/backup.conf}"
 readonly HEALTH_CONFIG="${BOUDYOS_HEALTH_CONFIG:-/etc/boudyos/health.conf}"
 readonly HEALTH_COMMAND="${BOUDYOS_HEALTH_COMMAND:-${BOUDYOS_HEALTH_HELPER:-/usr/local/sbin/boudyos-health}}"
+readonly HEALTH_PYTHONPATH="${BOUDYOS_HEALTH_PYTHONPATH:-/usr/local/lib/boudyos}"
 readonly READY_FILE="${BOUDYOS_READY_FILE:-/run/boudyos/ready}"
 readonly READY_MAX_AGE="${BOUDYOS_READY_MAX_AGE_SECONDS:-45}"
 readonly READY_ATTEMPTS="${BOUDYOS_RENAME_READY_ATTEMPTS:-60}"
@@ -194,7 +195,9 @@ health_is_healthy() {
     validate_root_file "$HEALTH_COMMAND" || return 1
     [[ -f "$HEALTH_COMMAND" && ! -L "$HEALTH_COMMAND" && -x "$HEALTH_COMMAND" ]] ||
         return 1
-    BOUDYOS_HEALTH_CONFIG="$config" "$HEALTH_COMMAND" >/dev/null 2>&1
+    BOUDYOS_HEALTH_CONFIG="$config" \
+        PYTHONPATH="$HEALTH_PYTHONPATH${PYTHONPATH:+:$PYTHONPATH}" \
+        "$HEALTH_COMMAND" >/dev/null 2>&1
 }
 
 enabled_state() { systemctl is-enabled "$1" 2>/dev/null || true; }
