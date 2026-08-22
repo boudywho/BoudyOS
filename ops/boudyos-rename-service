@@ -1,0 +1,450 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+readonly LEGACY_SERVICE="${BOUDYOS_LEGACY_SERVICE:-${BOUDYOS_RENAME_LEGACY_SERVICE:-ultroid.service}}"
+readonly TARGET_SERVICE="${BOUDYOS_TARGET_SERVICE:-${BOUDYOS_RENAME_TARGET_SERVICE:-boudyos.service}}"
+readonly UNIT_DIR="${BOUDYOS_UNIT_DIR:-${BOUDYOS_RENAME_UNIT_DIR:-/etc/systemd/system}}"
+readonly LEGACY_UNIT="${BOUDYOS_LEGACY_UNIT_PATH:-$UNIT_DIR/$LEGACY_SERVICE}"
+readonly TARGET_UNIT="${BOUDYOS_TARGET_UNIT_PATH:-$UNIT_DIR/$TARGET_SERVICE}"
+readonly LEGACY_DROPINS="${BOUDYOS_LEGACY_DROPIN_DIR:-$UNIT_DIR/$LEGACY_SERVICE.d}"
+readonly TARGET_DROPINS="${BOUDYOS_TARGET_DROPIN_DIR:-$UNIT_DIR/$TARGET_SERVICE.d}"
+readonly DEPLOY_CONFIG="${BOUDYOS_DEPLOY_CONFIG:-/etc/boudyos/deploy.conf}"
+readonly BACKUP_CONFIG="${BOUDYOS_BACKUP_CONFIG:-/etc/boudyos/backup.conf}"
+readonly HEALTH_CONFIG="${BOUDYOS_HEALTH_CONFIG:-/etc/boudyos/health.conf}"
+readonly HEALTH_COMMAND="${BOUDYOS_HEALTH_COMMAND:-${BOUDYOS_HEALTH_HELPER:-/usr/local/sbin/boudyos-health}}"
+readonly READY_FILE="${BOUDYOS_READY_FILE:-/run/boudyos/ready}"
+readonly READY_MAX_AGE="${BOUDYOS_READY_MAX_AGE_SECONDS:-45}"
+readonly READY_ATTEMPTS="${BOUDYOS_RENAME_READY_ATTEMPTS:-60}"
+readonly READY_INTERVAL="${BOUDYOS_RENAME_READY_INTERVAL:-1}"
+readonly RECORD="${BOUDYOS_RENAME_RECORD:-/var/lib/boudyos/service-rename}"
+readonly LOCK_FILE="${BOUDYOS_RENAME_LOCK:-/run/lock/boudyos/deploy.lock}"
+readonly TEST_MODE="${BOUDYOS_RENAME_TEST_MODE:-0}"
+readonly ACTION="${1:-plan}"
+
+transaction=""
+legacy_pid=0
+legacy_enabled=""
+
+fail() { printf '%s\n' "$*" >&2; return 1; }
+
+require_root() {
+    (( EUID == 0 )) ||
+        fail "Service rename requires root."
+}
+
+validate_names_and_paths() {
+    [[ "$LEGACY_SERVICE" == ultroid.service && "$TARGET_SERVICE" == boudyos.service ]] ||
+        fail "Only the ultroid.service to boudyos.service rename is supported."
+    [[ "$LEGACY_UNIT" == /* && "$TARGET_UNIT" == /* && "$LEGACY_UNIT" != "$TARGET_UNIT" ]] ||
+        fail "Unit paths must be distinct absolute paths."
+    [[ "$(basename "$LEGACY_UNIT")" == "$LEGACY_SERVICE" &&
+       "$(basename "$TARGET_UNIT")" == "$TARGET_SERVICE" ]] ||
+        fail "Configured unit paths do not match their service names."
+    [[ "$(basename "$LEGACY_DROPINS")" == "$LEGACY_SERVICE.d" &&
+       "$(basename "$TARGET_DROPINS")" == "$TARGET_SERVICE.d" ]] ||
+        fail "Configured drop-in paths do not match their service names."
+    [[ "$READY_MAX_AGE" =~ ^[1-9][0-9]*$ && "$READY_MAX_AGE" -le 300 &&
+       "$READY_ATTEMPTS" =~ ^[1-9][0-9]*$ ]] ||
+        fail "Readiness bounds are invalid."
+}
+
+validate_root_file() {
+    local path="$1" mode
+    [[ -f "$path" && ! -L "$path" && -r "$path" ]] ||
+        fail "A required root-managed regular file is missing or unsafe."
+    if [[ "$TEST_MODE" != 1 ]]; then
+        [[ "$(stat -c %u "$path")" == 0 ]] ||
+            fail "A required file is not root-owned."
+    fi
+    mode="$(stat -c %a "$path")"
+    (( (8#$mode & 022) == 0 )) ||
+        fail "A required file is group/world writable."
+}
+
+validate_dropin_tree() {
+    local directory="$1" entry mode
+    [[ ! -e "$directory" && ! -L "$directory" ]] && return 0
+    [[ -d "$directory" && ! -L "$directory" ]] ||
+        fail "A drop-in path is unsafe."
+    if [[ "$TEST_MODE" != 1 ]]; then
+        [[ "$(stat -c %u "$directory")" == 0 ]] ||
+            fail "A drop-in directory is not root-owned."
+    fi
+    mode="$(stat -c %a "$directory")"
+    (( (8#$mode & 022) == 0 )) ||
+        fail "A drop-in directory is group/world writable."
+    while IFS= read -r -d '' entry; do
+        [[ -f "$entry" && ! -L "$entry" && "$entry" == *.conf ]] ||
+            fail "A drop-in directory contains an unsupported entry."
+        if [[ "$TEST_MODE" != 1 ]]; then
+            [[ "$(stat -c %u "$entry")" == 0 ]] ||
+                fail "A drop-in file is not root-owned."
+        fi
+        mode="$(stat -c %a "$entry")"
+        (( (8#$mode & 022) == 0 )) ||
+            fail "A drop-in file is group/world writable."
+    done < <(find "$directory" -mindepth 1 -maxdepth 1 -print0)
+}
+
+selector_value() {
+    local path="$1" key="$2"
+    python3 - "$path" "$key" <<'PY'
+import re, sys
+lines = open(sys.argv[1], encoding="utf-8").read().splitlines()
+values = [match.group(1) for line in lines
+          if (match := re.fullmatch(rf"{re.escape(sys.argv[2])}=([^#\s]+)", line))]
+if len(values) != 1:
+    raise SystemExit(1)
+print(values[0])
+PY
+}
+
+validate_selectors() {
+    local wanted="$1"
+    validate_root_file "$DEPLOY_CONFIG"
+    validate_root_file "$BACKUP_CONFIG"
+    validate_root_file "$HEALTH_CONFIG"
+    [[ "$(selector_value "$DEPLOY_CONFIG" BOUDYOS_SERVICE)" == "$wanted" &&
+       "$(selector_value "$BACKUP_CONFIG" QUIESCE_SERVICE)" == "$wanted" &&
+       "$(selector_value "$HEALTH_CONFIG" SERVICE)" == "$wanted" ]]
+}
+
+replace_selector() {
+    local path="$1" key="$2" old="$3" new="$4"
+    python3 - "$path" "$key" "$old" "$new" <<'PY'
+import os, re, stat, sys, tempfile
+path, key, old, new = sys.argv[1:]
+info = os.stat(path, follow_symlinks=False)
+with open(path, "rb") as stream:
+    data = stream.read()
+pattern = re.compile(rb"(?m)^" + re.escape(key.encode()) + rb"=" + re.escape(old.encode()) + rb"$")
+if len(pattern.findall(data)) != 1:
+    raise SystemExit(1)
+fd, temporary = tempfile.mkstemp(prefix=".service-rename.", dir=os.path.dirname(path))
+try:
+    with os.fdopen(fd, "wb") as stream:
+        stream.write(pattern.sub((key + "=" + new).encode(), data))
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.chmod(temporary, stat.S_IMODE(info.st_mode))
+    os.chown(temporary, info.st_uid, info.st_gid)
+    os.replace(temporary, path)
+    directory = os.open(os.path.dirname(path), os.O_RDONLY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+finally:
+    try:
+        os.unlink(temporary)
+    except FileNotFoundError:
+        pass
+PY
+}
+
+atomic_restore() {
+    local source="$1" destination="$2" temporary
+    temporary="$(mktemp "$(dirname "$destination")/.service-restore.XXXXXX")"
+    cp -a -- "$source" "$temporary"
+    mv -fT -- "$temporary" "$destination"
+}
+
+main_pid() {
+    local service="$1" pid
+    pid="$(systemctl show "$service" --property=MainPID --value 2>/dev/null)" || return 1
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    printf '%s\n' "$pid"
+}
+
+ready_for_pid() {
+    local service="$1" pid="$2" minimum="${3:-0}"
+    systemctl is-active --quiet "$service" >/dev/null 2>&1 &&
+        python3 - "$READY_FILE" "$pid" "$minimum" "$READY_MAX_AGE" <<'PY'
+import json, sys, time
+try:
+    with open(sys.argv[1], encoding="ascii") as stream:
+        value = json.load(stream)
+    timestamp = int(value["timestamp"])
+    ok = (value.get("schema_version") == 1
+          and int(value["pid"]) == int(sys.argv[2])
+          and timestamp >= int(sys.argv[3])
+          and 0 <= time.time() - timestamp <= int(sys.argv[4]))
+except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+    ok = False
+raise SystemExit(0 if ok else 1)
+PY
+}
+
+wait_ready() {
+    local service="$1" minimum="$2" old_pid="${3:-0}" attempt pid
+    for ((attempt=0; attempt<READY_ATTEMPTS; attempt++)); do
+        pid="$(main_pid "$service" 2>/dev/null || true)"
+        if [[ "$pid" =~ ^[1-9][0-9]*$ && "$pid" != "$old_pid" ]] &&
+            ready_for_pid "$service" "$pid" "$minimum"; then
+            return 0
+        fi
+        sleep "$READY_INTERVAL"
+    done
+    return 1
+}
+
+health_is_healthy() {
+    local config="${1:-$HEALTH_CONFIG}"
+    validate_root_file "$HEALTH_COMMAND" || return 1
+    [[ -f "$HEALTH_COMMAND" && ! -L "$HEALTH_COMMAND" && -x "$HEALTH_COMMAND" ]] ||
+        return 1
+    BOUDYOS_HEALTH_CONFIG="$config" "$HEALTH_COMMAND" >/dev/null 2>&1
+}
+
+enabled_state() { systemctl is-enabled "$1" 2>/dev/null || true; }
+
+apply_enabled_state() {
+    local service="$1" state="$2"
+    case "$state" in
+        enabled) systemctl enable "$service" >/dev/null 2>&1 ;;
+        disabled) systemctl disable "$service" >/dev/null 2>&1 ;;
+        *) return 1 ;;
+    esac
+    [[ "$(enabled_state "$service")" == "$state" ]]
+}
+
+validate_effective_legacy_unit() {
+    local fragment dropins entry expected=""
+    validate_root_file "$LEGACY_UNIT"
+    validate_dropin_tree "$LEGACY_DROPINS"
+    [[ "$TEST_MODE" == 1 ]] && return 0
+    fragment="$(systemctl show "$LEGACY_SERVICE" --property=FragmentPath --value)"
+    [[ "$fragment" == "$LEGACY_UNIT" ]] ||
+        fail "Legacy FragmentPath does not match the configured unit path."
+    dropins="$(systemctl show "$LEGACY_SERVICE" --property=DropInPaths --value)"
+    if [[ -d "$LEGACY_DROPINS" ]]; then
+        while IFS= read -r entry; do
+            [[ "$entry" == *.conf ]] && expected+="${expected:+ }$entry"
+        done < <(find "$LEGACY_DROPINS" -mindepth 1 -maxdepth 1 -type f -print | LC_ALL=C sort)
+    fi
+    [[ "$dropins" == "$expected" ]] ||
+        fail "Effective legacy drop-ins do not exactly match the configured directory."
+}
+
+validate_effective_target_unit() {
+    local fragment dropins entry expected=""
+    validate_root_file "$TARGET_UNIT"
+    validate_dropin_tree "$TARGET_DROPINS"
+    [[ "$TEST_MODE" == 1 ]] && return 0
+    fragment="$(systemctl show "$TARGET_SERVICE" --property=FragmentPath --value)"
+    [[ "$fragment" == "$TARGET_UNIT" ]] ||
+        fail "Target FragmentPath does not match the configured unit path."
+    dropins="$(systemctl show "$TARGET_SERVICE" --property=DropInPaths --value)"
+    if [[ -d "$TARGET_DROPINS" ]]; then
+        while IFS= read -r entry; do
+            [[ "$entry" == *.conf ]] && expected+="${expected:+ }$entry"
+        done < <(find "$TARGET_DROPINS" -mindepth 1 -maxdepth 1 -type f -print | LC_ALL=C sort)
+    fi
+    [[ "$dropins" == "$expected" ]] ||
+        fail "Effective target drop-ins do not exactly match the configured directory."
+}
+
+same_file() {
+    [[ -f "$1" && ! -L "$1" && -f "$2" && ! -L "$2" ]] &&
+        cmp -s -- "$1" "$2" &&
+        [[ "$(stat -c '%u:%g:%a' "$1")" == "$(stat -c '%u:%g:%a' "$2")" ]]
+}
+
+same_tree() {
+    local first="$1" second="$2"
+    if [[ ! -e "$first" && ! -L "$first" ]]; then
+        [[ ! -e "$second" && ! -L "$second" ]]
+        return
+    fi
+    [[ -d "$first" && ! -L "$first" && -d "$second" && ! -L "$second" ]] || return 1
+    diff -qr --no-dereference "$first" "$second" >/dev/null || return 1
+    python3 - "$first" "$second" <<'PY'
+import stat, sys
+from pathlib import Path
+a, b = Path(sys.argv[1]), Path(sys.argv[2])
+for source in [a, *a.rglob("*")]:
+    target = b / source.relative_to(a)
+    x, y = source.lstat(), target.lstat()
+    if (x.st_uid, x.st_gid, stat.S_IMODE(x.st_mode)) != (y.st_uid, y.st_gid, stat.S_IMODE(y.st_mode)):
+        raise SystemExit(1)
+PY
+}
+
+already_complete() {
+    [[ ! -e "$LEGACY_UNIT" && ! -L "$LEGACY_UNIT" &&
+       ! -e "$LEGACY_DROPINS" && ! -L "$LEGACY_DROPINS" ]] || return 1
+    [[ -f "$RECORD/complete" && ! -L "$RECORD/complete" ]] || return 1
+    same_file "$TARGET_UNIT" "$RECORD/managed/unit" || return 1
+    same_tree "$TARGET_DROPINS" "$RECORD/managed/dropins" || return 1
+    validate_selectors "$TARGET_SERVICE" || return 1
+    [[ "$(enabled_state "$TARGET_SERVICE")" == "$(<"$RECORD/managed/enabled-state")" ]] || return 1
+    ! systemctl is-active --quiet "$LEGACY_SERVICE" >/dev/null 2>&1 || return 1
+    [[ "$(enabled_state "$LEGACY_SERVICE")" == disabled ]] || return 1
+    local pid
+    pid="$(main_pid "$TARGET_SERVICE")" || return 1
+    [[ "$pid" =~ ^[1-9][0-9]*$ ]] &&
+        ready_for_pid "$TARGET_SERVICE" "$pid" && health_is_healthy
+}
+
+preflight() {
+    require_root
+    validate_names_and_paths
+    if already_complete; then
+        printf 'already migrated: boudyos.service is canonical\n'
+        exit 0
+    fi
+    [[ ! -e "$TARGET_UNIT" && ! -L "$TARGET_UNIT" &&
+       ! -e "$TARGET_DROPINS" && ! -L "$TARGET_DROPINS" ]] || {
+        systemctl is-active --quiet "$LEGACY_SERVICE" >/dev/null 2>&1 &&
+            fail "Refusing ambiguous legacy and target service state."
+        fail "Target unit state is not a recorded canonical migration."
+    }
+    if [[ "$TEST_MODE" != 1 ]]; then
+        [[ "$(systemctl show "$TARGET_SERVICE" --property=LoadState --value 2>/dev/null || true)" == not-found ]] ||
+            fail "A target unit already exists outside the configured path."
+    fi
+    validate_effective_legacy_unit
+    validate_selectors "$LEGACY_SERVICE" ||
+        fail "Operational selectors do not exactly target ultroid.service."
+    systemctl is-active --quiet "$TARGET_SERVICE" >/dev/null 2>&1 &&
+        fail "Target service is unexpectedly active."
+    legacy_pid="$(main_pid "$LEGACY_SERVICE")"
+    if [[ ! "$legacy_pid" =~ ^[1-9][0-9]*$ ]] ||
+        ! ready_for_pid "$LEGACY_SERVICE" "$legacy_pid"; then
+        fail "Legacy service is not active and fresh-ready."
+    fi
+    health_is_healthy || fail "Legacy service health is not healthy."
+    legacy_enabled="$(enabled_state "$LEGACY_SERVICE")"
+    [[ "$legacy_enabled" == enabled || "$legacy_enabled" == disabled ]] ||
+        fail "Legacy enabled state is unsupported."
+}
+
+begin_snapshot() {
+    mkdir -p -- "$(dirname "$RECORD")"
+    [[ ! -e "$RECORD" && ! -L "$RECORD" ]] ||
+        fail "A non-canonical service rename record already exists."
+    transaction="$(mktemp -d "$(dirname "$RECORD")/.service-rename.XXXXXX")"
+    install -d -m 0700 "$transaction/before/config" "$transaction/managed"
+    cp -a -- "$LEGACY_UNIT" "$transaction/before/unit"
+    [[ ! -d "$LEGACY_DROPINS" ]] || cp -a -- "$LEGACY_DROPINS" "$transaction/before/dropins"
+    cp -a -- "$DEPLOY_CONFIG" "$transaction/before/config/deploy"
+    cp -a -- "$BACKUP_CONFIG" "$transaction/before/config/backup"
+    cp -a -- "$HEALTH_CONFIG" "$transaction/before/config/health"
+    cp -a -- "$DEPLOY_CONFIG" "$transaction/candidate-deploy"
+    cp -a -- "$BACKUP_CONFIG" "$transaction/candidate-backup"
+    cp -a -- "$HEALTH_CONFIG" "$transaction/candidate-health"
+    replace_selector "$transaction/candidate-deploy" BOUDYOS_SERVICE "$LEGACY_SERVICE" "$TARGET_SERVICE"
+    replace_selector "$transaction/candidate-backup" QUIESCE_SERVICE "$LEGACY_SERVICE" "$TARGET_SERVICE"
+    replace_selector "$transaction/candidate-health" SERVICE "$LEGACY_SERVICE" "$TARGET_SERVICE"
+    printf '%s\n' "$legacy_enabled" >"$transaction/before/enabled-state"
+    chmod 0600 "$transaction/before/enabled-state"
+}
+
+restore_transaction() {
+    local result=$? started
+    (( result != 0 )) || result=1
+    trap - ERR EXIT INT TERM
+    set +e
+    systemctl stop "$TARGET_SERVICE" >/dev/null 2>&1
+    systemctl disable "$TARGET_SERVICE" >/dev/null 2>&1
+    rm -f -- "$TARGET_UNIT"
+    rm -rf --one-file-system -- "$TARGET_DROPINS"
+    atomic_restore "$transaction/before/unit" "$LEGACY_UNIT"
+    rm -rf --one-file-system -- "$LEGACY_DROPINS"
+    [[ ! -d "$transaction/before/dropins" ]] || cp -a -- "$transaction/before/dropins" "$LEGACY_DROPINS"
+    atomic_restore "$transaction/before/config/deploy" "$DEPLOY_CONFIG"
+    atomic_restore "$transaction/before/config/backup" "$BACKUP_CONFIG"
+    atomic_restore "$transaction/before/config/health" "$HEALTH_CONFIG"
+    systemctl daemon-reload >/dev/null 2>&1
+    apply_enabled_state "$LEGACY_SERVICE" "$legacy_enabled" >/dev/null 2>&1
+    rm -f -- "$READY_FILE"
+    started="$(date +%s)"
+    if systemctl start "$LEGACY_SERVICE" >/dev/null 2>&1 &&
+        wait_ready "$LEGACY_SERVICE" "$started" "$legacy_pid" &&
+        health_is_healthy; then
+        rm -rf --one-file-system -- "$transaction"
+        printf 'Service rename failed; legacy service was restored and verified.\n' >&2
+        exit "$result"
+    fi
+    printf 'Service rename failed; legacy service recovery could not be verified.\n' >&2
+    exit 1
+}
+
+install_target_units() {
+    cp -a -- "$LEGACY_UNIT" "$TARGET_UNIT"
+    [[ ! -d "$LEGACY_DROPINS" ]] || cp -a -- "$LEGACY_DROPINS" "$TARGET_DROPINS"
+}
+
+rename_service() {
+    local started target_pid
+    begin_snapshot
+    trap restore_transaction ERR INT TERM
+
+    systemctl stop "$LEGACY_SERVICE" >/dev/null 2>&1
+    if systemctl is-active --quiet "$LEGACY_SERVICE" >/dev/null 2>&1; then return 1; fi
+    [[ "$(main_pid "$LEGACY_SERVICE")" == 0 ]]
+    install_target_units
+    systemctl daemon-reload >/dev/null 2>&1
+    validate_effective_target_unit
+    apply_enabled_state "$TARGET_SERVICE" "$legacy_enabled"
+    rm -f -- "$READY_FILE"
+    started="$(date +%s)"
+    systemctl start "$TARGET_SERVICE" >/dev/null 2>&1
+    wait_ready "$TARGET_SERVICE" "$started" "$legacy_pid"
+    target_pid="$(main_pid "$TARGET_SERVICE")"
+    ready_for_pid "$TARGET_SERVICE" "$target_pid" "$started"
+    health_is_healthy "$transaction/candidate-health"
+
+    # Each root-managed selector is replaced atomically only after the target
+    # has passed active-state, new-PID readiness, and health verification.
+    atomic_restore "$transaction/candidate-deploy" "$DEPLOY_CONFIG"
+    atomic_restore "$transaction/candidate-backup" "$BACKUP_CONFIG"
+    atomic_restore "$transaction/candidate-health" "$HEALTH_CONFIG"
+    validate_selectors "$TARGET_SERVICE"
+
+    cp -a -- "$TARGET_UNIT" "$transaction/managed/unit"
+    [[ ! -d "$TARGET_DROPINS" ]] || cp -a -- "$TARGET_DROPINS" "$transaction/managed/dropins"
+    printf '%s\n' "$legacy_enabled" >"$transaction/managed/enabled-state"
+    chmod 0600 "$transaction/managed/enabled-state"
+    systemctl disable "$LEGACY_SERVICE" >/dev/null 2>&1
+    mv -- "$LEGACY_UNIT" "$transaction/before/removed-unit"
+    [[ ! -d "$LEGACY_DROPINS" ]] || mv -- "$LEGACY_DROPINS" "$transaction/before/removed-dropins"
+    systemctl daemon-reload >/dev/null 2>&1
+    [[ "$(enabled_state "$TARGET_SERVICE")" == "$legacy_enabled" ]]
+    systemctl is-active --quiet "$TARGET_SERVICE" >/dev/null 2>&1
+    ready_for_pid "$TARGET_SERVICE" "$(main_pid "$TARGET_SERVICE")" "$started"
+    health_is_healthy
+    : >"$transaction/complete"
+    chmod 0600 "$transaction/complete"
+    mv -- "$transaction" "$RECORD"
+    transaction=""
+    trap - ERR INT TERM
+    printf 'renamed ultroid.service to boudyos.service and verified health\n'
+}
+
+main() {
+    case "$ACTION" in
+        plan|rename) ;;
+        *) fail "Usage: boudyos-rename-service [plan|rename]"; return 2 ;;
+    esac
+
+    if [[ "$ACTION" == plan || "${BOUDYOS_DRY_RUN:-0}" == 1 ]]; then
+        preflight
+        printf '%s\n' \
+            "plan: validate active ultroid.service readiness and health" \
+            "plan: preserve unit, drop-ins, selectors, ownership, modes, and enabled state" \
+            "plan: verify boudyos.service before removing legacy unit files"
+        return 0
+    fi
+
+    install -d -m 0750 "$(dirname "$LOCK_FILE")"
+    exec 9>"$LOCK_FILE"
+    flock -n 9 || { fail "Another deployment or migration transition is active."; return 1; }
+    preflight
+    rename_service
+}
+
+if [[ "${BOUDYOS_RENAME_LIB:-0}" != 1 ]]; then
+    main
+fi
