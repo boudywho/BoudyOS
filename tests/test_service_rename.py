@@ -99,7 +99,11 @@ PY
     ;;
   is-enabled)
     if [[ "$service" == "ultroid.service" ]]; then
-      cat "$FAKE_STATE/legacy-enabled"
+      if [[ -f "$BOUDYOS_RENAME_UNIT_DIR/$service" ]]; then
+        cat "$FAKE_STATE/legacy-enabled"
+      else
+        exit 1
+      fi
     elif [[ -f "$FAKE_STATE/target-enabled" ]]; then
       cat "$FAKE_STATE/target-enabled"
     else
@@ -234,6 +238,12 @@ esac
             unit_dir, configs, state, env = self.make_fixture(root)
             first = self.run_rename(env)
             self.assertEqual(first.returncode, 0, first.stderr)
+            legacy_state = subprocess.run(
+                ["systemctl", "is-enabled", "ultroid.service"],
+                env=env, text=True, capture_output=True, check=False,
+            )
+            self.assertNotEqual(legacy_state.returncode, 0)
+            self.assertEqual(legacy_state.stdout, "")
             before = {
                 path: (path.read_bytes(), path.stat().st_mtime_ns)
                 for path in [unit_dir / "boudyos.service", *configs]

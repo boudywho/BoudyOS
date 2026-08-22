@@ -275,6 +275,7 @@ PY
 }
 
 already_complete() {
+    local legacy_state pid
     [[ ! -e "$LEGACY_UNIT" && ! -L "$LEGACY_UNIT" &&
        ! -e "$LEGACY_DROPINS" && ! -L "$LEGACY_DROPINS" ]] || return 1
     [[ -f "$RECORD/complete" && ! -L "$RECORD/complete" ]] || return 1
@@ -283,8 +284,8 @@ already_complete() {
     validate_selectors "$TARGET_SERVICE" || return 1
     [[ "$(enabled_state "$TARGET_SERVICE")" == "$(<"$RECORD/managed/enabled-state")" ]] || return 1
     ! systemctl is-active --quiet "$LEGACY_SERVICE" >/dev/null 2>&1 || return 1
-    [[ "$(enabled_state "$LEGACY_SERVICE")" == disabled ]] || return 1
-    local pid
+    legacy_state="$(enabled_state "$LEGACY_SERVICE")"
+    [[ -z "$legacy_state" || "$legacy_state" == disabled ]] || return 1
     pid="$(main_pid "$TARGET_SERVICE")" || return 1
     [[ "$pid" =~ ^[1-9][0-9]*$ ]] &&
         ready_for_pid "$TARGET_SERVICE" "$pid" && health_is_healthy
