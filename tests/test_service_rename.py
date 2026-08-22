@@ -125,6 +125,7 @@ esac
         if health_success:
             health.write_text(
                 "#!/usr/bin/env bash\nset -e\n"
+                "[[ \"$PYTHONPATH\" == \"$EXPECTED_HEALTH_PYTHONPATH\" ]]\n"
                 "if [[ \"$(cat \"$FAKE_STATE/active\")\" == boudyos.service ]]; then\n"
                 "  grep -Fxq SERVICE=boudyos.service \"$BOUDYOS_HEALTH_CONFIG\"\n"
                 "fi\n",
@@ -133,6 +134,7 @@ esac
         else:
             health.write_text(
                 "#!/usr/bin/env bash\nset -e\n"
+                "[[ \"$PYTHONPATH\" == \"$EXPECTED_HEALTH_PYTHONPATH\" ]]\n"
                 "if [[ \"$(cat \"$FAKE_STATE/active\")\" == boudyos.service ]]; then\n"
                 "  grep -Fxq SERVICE=boudyos.service \"$BOUDYOS_HEALTH_CONFIG\"\n"
                 "  grep -Fxq BOUDYOS_SERVICE=ultroid.service \"$LIVE_DEPLOY\"\n"
@@ -143,6 +145,8 @@ esac
                 "utf-8",
             )
         health.chmod(0o755)
+        health_pythonpath = root / "health-pythonpath"
+        inherited_pythonpath = root / "inherited-pythonpath"
         env = {
             **os.environ,
             "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"],
@@ -153,8 +157,13 @@ esac
             "BOUDYOS_DEPLOY_CONFIG": str(configs[0]),
             "BOUDYOS_BACKUP_CONFIG": str(configs[1]),
             "BOUDYOS_HEALTH_CONFIG": str(configs[2]),
+            "BOUDYOS_HEALTH_PYTHONPATH": str(health_pythonpath),
             "BOUDYOS_READY_FILE": str(ready),
             "BOUDYOS_HEALTH_HELPER": str(health),
+            "PYTHONPATH": str(inherited_pythonpath),
+            "EXPECTED_HEALTH_PYTHONPATH": os.pathsep.join(
+                (str(health_pythonpath), str(inherited_pythonpath))
+            ),
             "LIVE_DEPLOY": str(configs[0]),
             "LIVE_BACKUP": str(configs[1]),
             "LIVE_HEALTH": str(configs[2]),

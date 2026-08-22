@@ -57,8 +57,9 @@ of those surfaces. Nonstandard test or staging locations may override
 `BOUDYOS_UNIT_DIR`,
 `BOUDYOS_DEPLOY_CONFIG`, `BOUDYOS_BACKUP_CONFIG`,
 `BOUDYOS_HEALTH_CONFIG`, `BOUDYOS_READY_FILE`,
-`BOUDYOS_HEALTH_COMMAND`, `BOUDYOS_RENAME_RECORD`, and
-`BOUDYOS_RENAME_LOCK`; production should use the defaults.
+`BOUDYOS_HEALTH_COMMAND`, `BOUDYOS_HEALTH_PYTHONPATH`,
+`BOUDYOS_RENAME_RECORD`, and `BOUDYOS_RENAME_LOCK`; production should use the
+defaults.
 
 Install the helper root-owned and non-group/world-writable. Before enabling or
 starting any BoudyOS unit, install and run the path provisioner:
