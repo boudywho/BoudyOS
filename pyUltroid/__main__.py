@@ -51,7 +51,10 @@ def main():
 
     LOGS.info("Initialising...")
 
-    ultroid_bot.run_in_loop(autopilot())
+    from .security.settings import setting_enabled
+
+    if not setting_enabled(udB, "SKIP_AUTOPILOT"):
+        ultroid_bot.run_in_loop(autopilot())
     ultroid_bot.loop.create_task(keep_redis_alive())
 
     pmbot = udB.get_key("PMBOT")
@@ -79,7 +82,8 @@ def main():
     plugin_channels = udB.get_key("PLUGIN_CHANNEL")
 
     # Customize Ultroid Assistant...
-    ultroid_bot.run_in_loop(customize())
+    if not setting_enabled(udB, "SKIP_ASSISTANT_CUSTOMIZE"):
+        ultroid_bot.run_in_loop(customize())
 
     # Load Addons from Plugin Channels.
     if plugin_channels:

@@ -8,6 +8,20 @@
 import os
 import sys
 
+# Maintenance commands must work without installed runtime dependencies. Loading
+# the file directly avoids startup/__init__.py and all Telegram boot side effects.
+if len(sys.argv) > 1 and sys.argv[1] in {"setup", "doctor", "help", "-h", "--help"} and (
+    sys.argv[0] == "-m" or __package__ in sys.argv
+):
+    import importlib.util
+    from pathlib import Path
+
+    _cli_path = Path(__file__).resolve().parent / "startup" / "setup_cli.py"
+    _spec = importlib.util.spec_from_file_location("_boudyos_setup_cli", _cli_path)
+    _cli = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_cli)
+    raise SystemExit(_cli.main(sys.argv[1:]))
+
 try:
     import telethonpatch
 except ImportError as exc:
@@ -30,6 +44,17 @@ if run_as_module:
     import time
 
     from .configs import Var
+    from .security.settings import setting_enabled
+    import importlib.util
+    from pathlib import Path
+
+    _spec = importlib.util.spec_from_file_location(
+        "_boudyos_config_validate",
+        Path(__file__).resolve().parent / "startup" / "config_validate.py",
+    )
+    _validator = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_validator)
+    _validator.validate_config_or_exit(Var)
     from .startup import *
     from .startup._database import UltroidDB
     from .startup.BaseClient import UltroidClient
@@ -80,7 +105,8 @@ if run_as_module:
             app_version=ultroid_version,
             device_model="BoudyOS",
         )
-        ultroid_bot.run_in_loop(autobot())
+        if not setting_enabled(udB, "SKIP_AUTOBOT"):
+            ultroid_bot.run_in_loop(autobot())
 
     if USER_MODE:
         asst = ultroid_bot

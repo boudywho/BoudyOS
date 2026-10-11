@@ -1,39 +1,79 @@
-import asyncio
+# Ultroid - UserBot
+# Copyright (C) 2021-2026 TeamUltroid
+"""Supervise independent clients; credentials never appear in process arguments."""
 import os
+from pathlib import Path
+import signal
 import subprocess
 import sys
 
-vars = ["API_ID", "API_HASH", "SESSION"]
+_AUTH = ('API_ID', 'API_HASH', 'SESSION')
+_SOURCE = Path(__file__).resolve().parent
 
-def _check(z):
-    new = []
-    for var in vars:
-        ent = os.environ.get(var + z)
-        if not ent:
-            return False, new
-        new.append(ent)
-    return True, new
 
-for z in range(5):
-    n = str(z + 1)
-    if z == 0:
-        z = ""
-    fine, out = _check(str(z))
-    if fine:
-        subprocess.Popen(
-            [sys.executable, "-m", "pyUltroid", out[0], out[1], out[2], out[3], out[4], n],
-            stdin=None,
-            stderr=None,
-            stdout=None,
-            cwd=None,
-        )
+def _client_env(suffix):
+    values = [os.environ.get(key + suffix) for key in _AUTH]
+    return values if all(values) else None
 
-loop = asyncio.get_event_loop()
 
-try:
-    loop.run_forever()
-except Exception as er:
-    print(er)
-finally:
-    loop.close()
+def main():
+    clients = []
+    workspaces = set()
+    databases = set()
+    for suffix in ('', '1', '2', '3', '4', '5'):
+        auth = _client_env(suffix)
+        if not auth:
+            continue
+        work = os.environ.get('BOUDYOS_CLIENT_WORK' + suffix)
+        work = Path(work).resolve() if work else (Path.cwd() if not suffix else None)
+        if work is None or not work.is_dir() or work in workspaces:
+            print('Each extra client requires its own existing BOUDYOS_CLIENT_WORK<n> directory.')
+            return 1
+        env = {key: value for key, value in os.environ.items()
+               if not any(key == base + number for base in (*_AUTH, 'BOT_TOKEN', 'LOG_CHANNEL', 'REDIS_URI', 'REDIS_PASSWORD', 'MONGO_URI', 'DATABASE_URL')
+                          for number in ('', '1', '2', '3', '4', '5'))}
+        env.update(dict(zip(_AUTH, auth)))
+        for key in ('BOT_TOKEN', 'LOG_CHANNEL', 'REDIS_URI', 'REDIS_PASSWORD', 'MONGO_URI', 'DATABASE_URL'):
+            value = os.environ.get(key + suffix)
+            if value:
+                env[key] = value
+        # Do not silently share account settings/OWNER_ID/BOT_TOKEN across clients.
+        remote = tuple(env.get(key, '') for key in ('REDIS_URI', 'MONGO_URI', 'DATABASE_URL'))
+        if suffix and not any(remote):
+            print('Extra clients require a distinct suffixed database configuration.')
+            return 1
+        if any(remote) and remote in databases:
+            print('Clients must not share a remote database.')
+            return 1
+        databases.add(remote)
+        workspaces.add(work)
+        env['PYTHONPATH'] = str(_SOURCE)
+        clients.append((env, str(work)))
+    if not clients:
+        print('No complete client credentials found; set API_ID, API_HASH, SESSION.')
+        return 1
+    children = []
+    old_handler = signal.getsignal(signal.SIGTERM)
+    def terminate(signum, frame):
+        raise KeyboardInterrupt
+    try:
+        signal.signal(signal.SIGTERM, terminate)
+        for env, work in clients:
+            children.append(subprocess.Popen([sys.executable, '-m', 'pyUltroid'], env=env, cwd=work))
+        return max((child.wait() for child in children), default=0)
+    except KeyboardInterrupt:
+        return 130
+    finally:
+        signal.signal(signal.SIGTERM, old_handler)
+        for child in children:
+            if child.poll() is None:
+                child.terminate()
+                try:
+                    child.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    child.kill()
+                    child.wait()
 
+
+if __name__ == '__main__':
+    raise SystemExit(main())
