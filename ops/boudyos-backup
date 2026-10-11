@@ -29,7 +29,6 @@ readonly STATUS_FILE="${BACKUP_STATUS_FILE:-$STATUS_DIR/backup.json}"
 readonly STATUS_GROUP="${BOUDYOS_STATUS_GROUP:-boudyos}"
 readonly LOCK_FILE="${BACKUP_LOCK_FILE:-/run/lock/boudyos/backup.lock}"
 readonly OPS_HELPER="${BOUDYOS_OPS_HELPER:-/usr/local/lib/boudyos/boudyos_ops.py}"
-readonly QUIESCE_SERVICE="${QUIESCE_SERVICE:-boudyos.service}"
 
 [[ "$BACKUP_MODE" == "managed" || "$BACKUP_MODE" == "legacy" ]] || {
     echo "Backup mode must be managed or legacy." >&2
@@ -60,17 +59,10 @@ flock -n 9 || {
 }
 
 stage="$(mktemp -d /tmp/boudyos-backup.XXXXXX)"
-service_stopped=0
 temporary=""
 signature_temporary=""
 cleanup() {
     local result=$?
-    if [[ "$service_stopped" == "1" ]]; then
-        if ! systemctl start "$QUIESCE_SERVICE" >/dev/null 2>&1; then
-            echo "Backup failed and the quiesced service could not be restarted." >&2
-            result=1
-        fi
-    fi
     if [[ -n "$temporary" ]]; then
         rm -f -- "$temporary"
     fi
@@ -100,10 +92,6 @@ else
     exit 1
 fi
 
-if systemctl is-active --quiet "$QUIESCE_SERVICE"; then
-    systemctl stop "$QUIESCE_SERVICE"
-    service_stopped=1
-fi
 active_source_seen=0
 resolved_source=""
 while IFS= read -r configured_path; do
@@ -145,11 +133,6 @@ done <"$ALLOWLIST_FILE"
     echo "The active backup source is missing from the allowlist." >&2
     exit 1
 }
-if [[ "$service_stopped" == "1" ]]; then
-    systemctl start "$QUIESCE_SERVICE"
-    service_stopped=0
-fi
-
 if [[ "$BACKUP_MODE" == "managed" ]]; then
     git -C "$resolved_source" rev-parse HEAD >"$stage/release/revision"
     git -C "$resolved_source" describe --tags --exact-match 2>/dev/null \

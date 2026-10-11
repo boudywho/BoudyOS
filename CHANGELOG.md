@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — uninterrupted backups
+
+- Backups no longer stop or restart the Telegram workspace. SQLite sessions
+  use online snapshots with integrity checks; Redis keeps its native snapshot.
+- Keep only the newest three encrypted backup/signature pairs.
+- Ignore zero/empty log-channel placeholders instead of overwriting saved groups.
+- Verified a production encrypted backup and restore inventory with the same
+  running BoudyOS PID. Existing backup history was cleared at the owner's request.
+- Legacy divergent GitHub branches remain separate: their incompatible loader,
+  dependency, and architecture changes need selective review rather than blanket
+  merging. This fix is integrated into main independently.
+
 ## Unreleased — canonical service name
 
 - Added a root-only, dry-runnable, idempotent migration from

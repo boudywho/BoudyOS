@@ -344,15 +344,14 @@ class BackupPolicyTests(unittest.TestCase):
                 (destination / "payload").stat().st_mode & 0o777, 0o640
             )
 
-    def test_rotation_keeps_daily_weekly_monthly_buckets(self):
+    def test_rotation_caps_history_at_three_archives(self):
         now = datetime(2026, 7, 30, tzinfo=timezone.utc)
         paths = []
         for days in range(0, 100):
             stamp = now - timedelta(days=days)
             paths.append(Path("boudyos-" + stamp.strftime("%Y%m%dT%H%M%SZ") + ".tar.age"))
         kept = ops.rotation_keep(paths, now=now)
-        self.assertLessEqual(len(kept), 14)
-        self.assertEqual(len(kept), 14)
+        self.assertEqual(kept, paths[:3])
 
 
 class HealthPolicyTests(unittest.TestCase):
