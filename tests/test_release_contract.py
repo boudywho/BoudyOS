@@ -50,8 +50,8 @@ class ReleaseContractTests(unittest.TestCase):
     def test_product_and_upstream_versions_are_distinct(self):
         namespace = {}
         exec((ROOT / "pyUltroid/version.py").read_text("utf-8"), namespace)
-        self.assertEqual(namespace["BOUDYOS_VERSION"], "2.2.6")
-        self.assertEqual(namespace["ultroid_version"], "2.2.6")
+        self.assertEqual(namespace["BOUDYOS_VERSION"], "2.3.0")
+        self.assertEqual(namespace["ultroid_version"], "2.3.0")
         self.assertEqual(namespace["__version__"], "2026.04.03")
 
     def test_python310_service_uses_immutable_safe_path_launcher(self):

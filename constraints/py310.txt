@@ -2,7 +2,7 @@
 # This is a constraints set, not a complete transitive hash lock.
 telethon-patch @ git+https://github.com/New-dev0/Telethon-Patch.git@369fa3266c8a9c9aefb4a6c5608e8d44c09c7087
 telethon==1.44.0
-gitpython==3.1.58
+gitpython==3.1.60
 python-decouple==3.8
 python-dotenv==1.2.2
 PyYAML==6.0.2
@@ -19,7 +19,7 @@ Pillow==12.3.0
 numpy==2.2.6
 opencv-python-headless==4.13.0.92
 lottie==0.7.2
-pypdf==6.15.0
+pypdf==6.19.0
 qrcode==8.2
 yt-dlp==2026.7.4
 youtube-search-python==1.6.6
@@ -31,6 +31,6 @@ tgcrypto==1.2.5
 pyrogram==2.0.106
 redis==8.0.1
 hiredis==3.4.0
-pymongo==4.17.0
+pymongo==4.18.2
 dnspython==2.8.0
 psycopg2-binary==2.9.12

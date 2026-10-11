@@ -111,6 +111,9 @@ if run_as_module:
     if USER_MODE:
         asst = ultroid_bot
     else:
+        if not udB.get_key("BOT_TOKEN"):
+            LOGS.critical("Assistant BOT_TOKEN is missing; supply one or allow autobot provisioning.")
+            raise SystemExit(1)
         asst = UltroidClient("asst", bot_token=udB.get_key("BOT_TOKEN"), udB=udB)
 
     if BOT_MODE:

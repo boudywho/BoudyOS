@@ -31,12 +31,39 @@ def config(**values):
     return types.SimpleNamespace(**defaults)
 
 
+class RuntimeEnvironmentTests(unittest.TestCase):
+    @unittest.skipUnless(importlib.util.find_spec('decouple') and importlib.util.find_spec('dotenv'), 'requires installed configuration dependencies')
+    def test_runtime_reads_working_directory_environment(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / '.env').write_text('API_ID=12345\nAPI_HASH=' + 'a' * 32 + '\nSESSION=fixture\n')
+            script = """import importlib.util,sys,types
+from pathlib import Path
+source=Path(sys.argv[1])
+pkg=types.ModuleType('pyUltroid'); pkg.__path__=[str(source/'pyUltroid')];sys.modules['pyUltroid']=pkg
+sys.argv=['test']
+spec=importlib.util.spec_from_file_location('pyUltroid.configs',source/'pyUltroid/configs.py')
+module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+assert module.Var.API_ID==12345
+assert module.Var.SESSION=='fixture'
+"""
+            env = {key: value for key, value in os.environ.items() if key not in {'API_ID', 'API_HASH', 'SESSION'}}
+            subprocess.run([sys.executable, '-c', script, str(ROOT)], cwd=tmp, env=env, check=True, capture_output=True)
+
+
 class ConfigTests(unittest.TestCase):
     def setUp(self):
         self.cv = load_file("isolated_validate", "pyUltroid/startup/config_validate.py")
         self.env = mock.patch.dict(os.environ, {}, clear=True)
         self.env.start()
         self.addCleanup(self.env.stop)
+
+    def test_skipping_autobot_requires_manual_token_unless_user_mode(self):
+        errors, _ = self.cv.collect_config_issues(config(SKIP_AUTOBOT=True))
+        # Database-held tokens are validated after DB connect, not by this offline probe.
+        self.assertEqual(errors, [])
+        errors, _ = self.cv.collect_config_issues(config(SKIP_AUTOBOT=True, USER_MODE=True))
+        self.assertEqual(errors, [])
 
     def test_custom_credentials_and_local_warning(self):
         errors, warnings = self.cv.collect_config_issues(config())
