@@ -151,7 +151,9 @@ refused and never executed.
 
 ## Authenticated encrypted backup
 
-Install `age`. Provision at least 32 random bytes as root:root 0600 at the
+Install `age` and the native `sqlite3` CLI (with `-nofollow` support, SQLite
+3.31 or newer). Snapshots fail closed if that tool is unavailable. Provision
+at least 32 random bytes as root:root 0600 at the
 configured `HMAC_KEY_FILE`, separate from backups and the age identity, for
 example:
 
@@ -162,10 +164,14 @@ python3 /usr/local/lib/boudyos/boudyos_ops.py ensure-hmac-key \
 ```
 
 Configure the public `AGE_RECIPIENT`, root-readable allowlist, native Redis
-connection, age identity path, HMAC key path, and quiesce service. The bot
-service is stopped briefly while allowlisted local files/directories are
-copied; symlink or special-file sources fail. Redis is exported with
-`redis-cli --rdb`, not copied while live.
+connection, age identity path, and HMAC key path. Backups never stop or restart
+the bot service. SQLite files use the online backup API with integrity checks;
+transient SQLite journals are excluded. Other allowlisted files are copied live;
+symlink or special-file sources fail. Redis uses its native `redis-cli --rdb`
+snapshot. Each database is consistent independently, not a single atomic
+snapshot across Redis and all files; transient downloads/logs can change during
+copying. `LOG_CHANNEL=0` is only an installer placeholder and must not overwrite
+a saved log-group ID on startup.
 
 The supplied allowlist names `/var/lib/boudyos/current`. The root backup helper
 accepts that one activation symlink only when it resolves directly to
@@ -185,7 +191,7 @@ detached HMAC-SHA256 sidecar. Restore verification authenticates ciphertext
 before age decrypts or tar parsing begins. The HMAC key is read from its file,
 never placed in arguments or logs. There is no plaintext fallback.
 
-Rotation keeps 7 daily, 4 weekly, and 3 monthly archive/signature pairs.
+Rotation keeps only the newest three archive/signature pairs.
 `boudyos-restore-verify` uses a private temporary directory and never writes
 production.
 
