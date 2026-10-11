@@ -41,6 +41,32 @@ class MultiClientTests(unittest.TestCase):
             self.assertEqual(kwargs['env']['REDIS_URI'], 'localhost:6381')
             self.assertEqual(kwargs['cwd'], tmp)
 
+    def test_secondary_does_not_inherit_global_redis_aliases(self):
+        mod = load_file('multi_client_test', 'multi_client.py')
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {'API_ID1': '22', 'API_HASH1': 'hash', 'SESSION1': 'session',
+                   'BOUDYOS_CLIENT_WORK1': tmp, 'MONGO_URI1': 'mongodb://private-db/account',
+                   'REDISHOST': 'shared-host', 'REDIS_URL': 'shared-host:6379', 'REDISPASSWORD': 'secret'}
+            child = Mock()
+            child.wait.return_value = 0
+            with patch.dict(os.environ, env, clear=True), patch.object(mod.subprocess, 'Popen', return_value=child) as launch:
+                self.assertEqual(mod.main(), 0)
+            child_env = launch.call_args.kwargs['env']
+            self.assertNotIn('REDISHOST', child_env)
+            self.assertNotIn('REDIS_URL', child_env)
+            self.assertNotIn('REDISPASSWORD', child_env)
+
+    def test_effective_redis_collision_rejected_even_with_different_mongo(self):
+        mod = load_file('multi_client_test', 'multi_client.py')
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {'API_ID': '11', 'API_HASH': 'hash', 'SESSION': 'primary',
+                   'API_ID1': '22', 'API_HASH1': 'hash', 'SESSION1': 'secondary',
+                   'BOUDYOS_CLIENT_WORK1': tmp, 'REDIS_URI': 'shared:6379', 'REDIS_URI1': 'shared:6379',
+                   'MONGO_URI': 'mongodb://unused-a/db', 'MONGO_URI1': 'mongodb://unused-b/db'}
+            with patch.dict(os.environ, env, clear=True), patch.object(mod.subprocess, 'Popen') as launch:
+                self.assertEqual(mod.main(), 1)
+                launch.assert_not_called()
+
     def test_secondary_shared_redis_is_rejected(self):
         mod = load_file('multi_client_test', 'multi_client.py')
         env = {'API_ID1': '22', 'API_HASH1': 'hash', 'SESSION1': 'session', 'REDIS_URI': 'localhost:6380'}

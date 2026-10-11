@@ -18,7 +18,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     && echo $TZ > /etc/timezone \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates ffmpeg git mediainfo wkhtmltopdf \
+        ca-certificates ffmpeg git mediainfo sqlite3 wkhtmltopdf \
     && rm -rf /var/lib/apt/lists/*
 
 # Install against BoudyOS' checked-out dependency manifests. The base image supplies
@@ -26,7 +26,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
 COPY requirements.txt /tmp/boudyos/requirements.txt
 COPY requirements /tmp/boudyos/requirements
 COPY constraints /tmp/boudyos/constraints
-RUN python3 -m pip install --no-cache-dir \
+RUN python3 -m pip install --no-cache-dir --upgrade 'pip>=26.2' 'setuptools>=83' \
+    && python3 -m pip install --no-cache-dir \
         -r /tmp/boudyos/requirements/media.txt \
         -c /tmp/boudyos/constraints/py313.txt \
     && python3 -m pip check \

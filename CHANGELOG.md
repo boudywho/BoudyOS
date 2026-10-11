@@ -7,6 +7,8 @@
 - Added offline setup/doctor, redacted configuration checks, typed settings,
   owner-only official plugin controls, structured plugin load diagnostics,
   isolated supervised multi-client launching, and short FloodWait handling.
+- Updated vulnerable GitPython, PyMongo, and pypdf pins; upgraded packaging
+  tooling and included native SQLite in Docker for live snapshots.
 - Preserved pinned dependencies, trusted addons, immutable deployment,
   PID-correlated readiness and uninterrupted encrypted backups.
 - Historical alternate architectures are explicitly superseded and recoverable

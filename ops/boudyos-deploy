@@ -950,6 +950,8 @@ deploy_release() {
         return
     fi
     python3 -m venv "$stage/source/.venv"
+    "$stage/source/.venv/bin/python" -m pip install --disable-pip-version-check \
+        --upgrade 'pip>=26.2' 'setuptools>=83'
     python_minor="$("$stage/source/.venv/bin/python" -c \
         'import sys; print("313" if sys.version_info[:2] >= (3, 13) else "310")')"
     "$stage/source/.venv/bin/python" -m pip install --disable-pip-version-check \

@@ -137,7 +137,7 @@ def cmd_setup():
         "API_HASH": _prompt("API_HASH", secret=True),
         "SESSION": _prompt("SESSION (generate with bash sessiongen)", secret=True),
         "BOT_TOKEN": _prompt("BOT_TOKEN (optional)", secret=True),
-        "LOG_CHANNEL": _prompt("LOG_CHANNEL (0 disables log delivery)", "0"),
+        "LOG_CHANNEL": _prompt("LOG_CHANNEL (0 means unconfigured)", "0"),
     }
     backend = _prompt("Database: local / redis / mongo / postgres", "local").lower()
     profile = "minimal"
@@ -155,6 +155,10 @@ def cmd_setup():
         values[key] = _prompt(key + " (true/false)", "true")
     values["ULTROID_STRICT_CONFIG"] = _prompt("Require remote database (true/false)", "false")
     errors, _ = _load_validator().collect_config_issues(SimpleNamespace(**values))
+    if values["SKIP_AUTOBOT"].strip().lower() in {"true", "1", "yes", "on"} and not values["BOT_TOKEN"]:
+        errors.append("SKIP_AUTOBOT requires a manually configured BOT_TOKEN.")
+    if values["SKIP_AUTOPILOT"].strip().lower() in {"true", "1", "yes", "on"} and values["LOG_CHANNEL"] in {"", "0"}:
+        errors.append("SKIP_AUTOPILOT requires a manually configured LOG_CHANNEL.")
     if errors:
         for issue in errors:
             print("ERR: " + issue)

@@ -53,6 +53,9 @@ def main():
 
     from .security.settings import setting_enabled
 
+    if setting_enabled(udB, "SKIP_AUTOPILOT") and not udB.get_key("LOG_CHANNEL"):
+        LOGS.critical("SKIP_AUTOPILOT requires a configured LOG_CHANNEL.")
+        raise SystemExit(1)
     if not setting_enabled(udB, "SKIP_AUTOPILOT"):
         ultroid_bot.run_in_loop(autopilot())
     ultroid_bot.loop.create_task(keep_redis_alive())

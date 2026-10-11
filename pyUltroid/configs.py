@@ -8,14 +8,18 @@
 import os
 import sys
 
-from decouple import config
+from pathlib import Path
+from decouple import AutoConfig
+
+# Mutable working-directory configuration, never a source-tree ancestor .env.
+config = AutoConfig(search_path=str(Path.cwd()))
 
 from .security.settings import parse_bool
 
 try:
     from dotenv import load_dotenv
 
-    load_dotenv()
+    load_dotenv(dotenv_path=Path.cwd() / ".env", override=False)
 except ImportError:
     pass
 
