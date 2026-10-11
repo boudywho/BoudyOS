@@ -81,5 +81,8 @@ ops/*-paths
 htmlcov/
 .tox/
 
+# Locally generated code-navigation artifacts
+graphify-out/
+
 # fly.io configs
 fly.toml

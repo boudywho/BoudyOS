@@ -141,10 +141,13 @@ def update_envs():
             envs in ["LOG_CHANNEL", "BOT_TOKEN", "BOTMODE", "DUAL_MODE", "language"]
             or envs in udB.keys()
         ):
-            if _value := os.environ.get(envs):
-                udB.set_key(envs, _value)
-            else:
-                udB.set_key(envs, config(envs, default=None))
+            _value = os.environ.get(envs)
+            if _value is None:
+                _value = config(envs, default=None)
+            # Zero is the installer placeholder, not a request to forget a group.
+            if envs == "LOG_CHANNEL" and str(_value).strip() in {"0", "", "None"}:
+                continue
+            udB.set_key(envs, _value)
 
 
 async def startup_stuff():

@@ -8,7 +8,9 @@ import os
 import re
 import secrets
 import shutil
+import sqlite3
 import stat
+import subprocess
 import tarfile
 import tempfile
 from datetime import datetime, timezone
@@ -198,6 +200,52 @@ def safe_extract_tar(archive: Path, destination: Path) -> None:
         raise
 
 
+def sqlite_sidecar(source: Path) -> bool:
+    if not source.name.endswith(("-wal", "-shm", "-journal")):
+        return False
+    base = source.with_name(source.name.rsplit("-", 1)[0])
+    try:
+        with os.fdopen(os.open(base, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
+            return stat.S_ISREG(os.fstat(stream.fileno()).st_mode) and stream.read(16) == b"SQLite format 3\x00"
+    except FileNotFoundError:
+        return False
+
+
+def copy_live_file(source: Path, target: Path) -> None:
+    """Snapshot SQLite files online, refusing links and transient journals."""
+    if source.is_symlink():
+        raise ValueError("backup source symlinks are forbidden")
+    if sqlite_sidecar(source):
+        return
+    with os.fdopen(os.open(source, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError("backup source is not a regular file")
+        sqlite = stream.read(16) == b"SQLite format 3\x00"
+        if sqlite:
+            # Python's sqlite3 API does not expose SQLITE_OPEN_NOFOLLOW.
+            # The native CLI does, and .backup uses SQLite's online backup API.
+            if any(char in str(target) for char in ('"', '\n', '\r')):
+                raise ValueError("unsafe SQLite backup destination")
+            command = '.timeout 5000\n.backup "' + str(target) + '"\n'
+            subprocess.run(["sqlite3", "-nofollow", "-readonly", "-bail", str(source)],
+                           input=command, text=True, check=True, capture_output=True, timeout=60)
+            with sqlite3.connect(target) as saved:
+                saved.execute("PRAGMA journal_mode=DELETE")
+                if saved.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+                    raise ValueError("SQLite backup failed integrity validation")
+        else:
+            stream.seek(0)
+            with target.open("wb") as outgoing:
+                shutil.copyfileobj(stream, outgoing)
+        current = source.lstat()
+        if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino) or not stat.S_ISREG(current.st_mode):
+            target.unlink(missing_ok=True)
+            raise ValueError("backup source changed during snapshot")
+        os.chmod(target, stat.S_IMODE(info.st_mode))
+        os.utime(target, ns=(info.st_atime_ns, info.st_mtime_ns))
+
+
 def copy_regular_source(source: Path, destination_root: Path) -> Path:
     """Copy an absolute allowlisted source without following any link."""
     if not source.is_absolute() or source == Path("/"):
@@ -215,7 +263,7 @@ def copy_regular_source(source: Path, destination_root: Path) -> Path:
     target = destination_root / source.relative_to("/")
     if stat.S_ISREG(info.st_mode):
         target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        shutil.copy2(source, target, follow_symlinks=False)
+        copy_live_file(source, target)
         return target
     target.mkdir(mode=info.st_mode & 0o7777, parents=True, exist_ok=True)
     for directory, names, filenames in os.walk(source, followlinks=False):
@@ -229,9 +277,11 @@ def copy_regular_source(source: Path, destination_root: Path) -> Path:
                 raise ValueError("backup source tree contains a link or special entry")
         for name in filenames:
             child = directory_path / name
+            if sqlite_sidecar(child):
+                continue
             if not stat.S_ISREG(child.lstat().st_mode):
                 raise ValueError("backup source tree contains a link or special entry")
-            shutil.copy2(child, output_dir / name, follow_symlinks=False)
+            copy_live_file(child, output_dir / name)
     return target
 
 
@@ -293,10 +343,12 @@ def copy_managed_runtime_state(
                 raise ValueError("mutable runtime state contains a special entry")
         for name in filenames:
             child = directory_path / name
+            if sqlite_sidecar(child):
+                continue
             mode = child.lstat().st_mode
             if stat.S_ISLNK(mode) or not stat.S_ISREG(mode):
                 raise ValueError("mutable runtime state contains a special entry")
-            shutil.copy2(child, output_dir / name, follow_symlinks=False)
+            copy_live_file(child, output_dir / name)
     return target
 
 
@@ -435,11 +487,9 @@ def rotation_keep(
     paths: Sequence[Path],
     *,
     now: datetime,
-    daily: int = 7,
-    weekly: int = 4,
-    monthly: int = 3,
+    keep: int = 3,
 ) -> List[Path]:
-    """Select newest unique time buckets for 7/4/3 retention."""
+    """Keep only the newest archives, regardless of their age."""
     parsed = []
     pattern = re.compile(r"^boudyos-(\d{8}T\d{6}Z)\.tar\.age$")
     for path in paths:
@@ -453,18 +503,7 @@ def rotation_keep(
                     path,
                 )
             )
-    limits = {"daily": daily, "weekly": weekly, "monthly": monthly}
-    buckets: Dict[str, set] = {key: set() for key in limits}
-    kept: List[Path] = []
-    for timestamp, path in sorted(parsed, reverse=True):
-        bucket = _bucket(timestamp, now)
-        kind = bucket.split(":", 1)[0]
-        if bucket in buckets[kind]:
-            continue
-        if len(buckets[kind]) < limits[kind]:
-            buckets[kind].add(bucket)
-            kept.append(path)
-    return kept
+    return [path for _, path in sorted(parsed, reverse=True)[:max(0, keep)]]
 
 
 def sanitize_health_status(status: Mapping[str, Any]) -> Dict[str, Any]:
