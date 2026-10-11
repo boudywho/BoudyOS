@@ -41,6 +41,8 @@ jobs:
         run: |
           python -c "import bs4, htmlwebshot, telethonpatch; import hiredis, psycopg2, pymongo, redis; from telethonpatch import TelegramClient"
           python -c "from pyUltroid.startup.BaseClient import UltroidClient"
+      - name: Install native SQLite snapshot tool
+        run: sudo apt-get update && sudo apt-get install -y sqlite3
       - name: Unit and security tests
         run: |
           python -m unittest discover -s tests -p 'test_security.py' -v
