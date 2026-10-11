@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased — uninterrupted backups
+## BoudyOS 2.3.0 — consolidated upstream development
+
+- Reconciled TeamUltroid feature and preview histories onto current BoudyOS main.
+  TeamUltroid main itself was already integrated at edd18d3.
+- Added offline setup/doctor, redacted configuration checks, typed settings,
+  owner-only official plugin controls, structured plugin load diagnostics,
+  isolated supervised multi-client launching, and short FloodWait handling.
+- Preserved pinned dependencies, trusted addons, immutable deployment,
+  PID-correlated readiness and uninterrupted encrypted backups.
+- Historical alternate architectures are explicitly superseded and recoverable
+  from archive tags; see docs/BRANCH_CONSOLIDATION.md for each merge decision.
+
+## BoudyOS 2.3.0 — uninterrupted backups
 
 - Backups no longer stop or restart the Telegram workspace. SQLite sessions
   use online snapshots with integrity checks; Redis keeps its native snapshot.
@@ -8,9 +20,8 @@
 - Ignore zero/empty log-channel placeholders instead of overwriting saved groups.
 - Verified a production encrypted backup and restore inventory with the same
   running BoudyOS PID. Existing backup history was cleared at the owner's request.
-- Legacy divergent GitHub branches remain separate: their incompatible loader,
-  dependency, and architecture changes need selective review rather than blanket
-  merging. This fix is integrated into main independently.
+- Legacy branch tips are preserved as archive tags; consolidation keeps current
+  secure implementations rather than restoring incompatible historical designs.
 
 ## Unreleased — canonical service name
 

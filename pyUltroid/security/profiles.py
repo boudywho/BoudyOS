@@ -9,7 +9,7 @@ PROFILE_PLUGINS = {
         (
             "_chatactions", "_help", "_inline", "_ultroid", "_userlogs", "_wspr",
             "afk", "asstcmd", "bot", "button", "calculator", "chats", "core",
-            "database", "downloadupload", "extra", "filter", "fontgen",
+            "database", "doctor", "pluginsctl", "downloadupload", "extra", "filter", "fontgen",
             "greetings", "misc", "notes", "other", "pmpermit", "polls",
             "profile", "sudo", "tools", "usage", "utilities", "variables",
             "warn",

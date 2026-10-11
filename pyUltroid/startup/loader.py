@@ -12,7 +12,7 @@ from decouple import config
 
 from .. import *
 from ..dB._core import HELP
-from ..loader import Loader
+from ..loader import Loader, reset_load_report, summarize_load_report
 from ..paths import (
     OFFICIAL_ASSISTANT,
     OFFICIAL_PLUGINS,
@@ -74,6 +74,7 @@ def _after_load(loader, module, plugin_name=""):
 
 
 def load_other_plugins(addons=None, pmbot=None, manager=None, vcbot=None):
+    reset_load_report()
 
     # for official
     _exclude = udB.get_key("EXCLUDE_OFFICIAL") or config("EXCLUDE_OFFICIAL", None)
@@ -192,3 +193,4 @@ def load_other_plugins(addons=None, pmbot=None, manager=None, vcbot=None):
                     LOGS.error(f"{e} Skipping VCBot Installation.")
         except ModuleNotFoundError:
             LOGS.error("'pytgcalls' not installed!\nSkipping loading of VCBOT.")
+    summarize_load_report()
